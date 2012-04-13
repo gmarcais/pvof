@@ -18,7 +18,7 @@ yaggo.cpp yaggo.hpp:
 # Programs
 ##############################
 bin_PROGRAMS = pvof
-pvof_SOURCES = src/pvof.cc src/pipe_open.cc src/lsof.cc
+pvof_SOURCES = src/pvof.cc src/pipe_open.cc src/lsof.cc src/print_info.cc
 BUILT_SOURCES += src/pvof.hpp
 
 ##############################

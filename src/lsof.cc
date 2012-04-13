@@ -31,9 +31,18 @@ bool parse_line(std::string& line, file_info& f) {
       }
       break;
 
+    case 's': // Get size
+      fields = sscanf(ptr, "s%ld", &f.size);
+      if(fields != 1) return false;
+      break;
+
     case 'i': // Get inode
       fields = sscanf(ptr, "i%li", &f.inode);
       if(fields != 1) return false;
+      break;
+
+    case 'n': // Get name
+      f.name.assign(ptr + 1);
       break;
       
     default: 
@@ -47,14 +56,19 @@ bool parse_line(std::string& line, file_info& f) {
 }
 
 bool update_file_info(const char* pid_str, file_list& list) {
+  bool return_status = true;
   const char* cmd[] = { LSOF, "-p", pid_str, "-o0", "-o", "-Ffiao0", 0 };
   pipe_open offsets_pipe(cmd, true, true);
-  update_file_info(offsets_pipe, list);
+  if(update_file_info(offsets_pipe, list))
+    return_status = return_status && update_file_names(pid_str, list);
+  std::cerr << "return_status " << return_status << std::endl;
 
   auto status = offsets_pipe.status();
-  return status.first == 0 && 
+  return_status = return_status &&
+    status.first == 0 && 
     WIFEXITED(status.second) &&
     WEXITSTATUS(status.second) == 0;
+  return return_status;
 }
 
 bool update_file_info(std::istream& is, file_list& list) {
@@ -66,6 +80,7 @@ bool update_file_info(std::istream& is, file_list& list) {
   bool need_updated_name = false;
   while(std::getline(is, line)) {
     file_info f;
+    f.offset = f.size = 0;
     if(!parse_line(line, f))
       continue;
     auto cfile = find_file_in_list(list, f.fd, f.inode);
@@ -78,5 +93,37 @@ bool update_file_info(std::istream& is, file_list& list) {
       cfile->updated = true;
     }
   }
+
+  return need_updated_name;
+}
+
+bool update_file_names(const char* pid_str, file_list& list) {
+  const char* cmd[] = { LSOF, "-p", pid_str, "-s", "-Ffiasn0", 0 };
+  pipe_open names_pipe(cmd, true, true);
+  update_file_names(names_pipe, list);
+  
+  auto status = names_pipe.status();
+  std::cerr << status.first << " " << WIFEXITED(status.second) << " "
+            << WEXITSTATUS(status.second) << std::endl;
+  return status.first == 0 && 
+    WIFEXITED(status.second) &&
+    WEXITSTATUS(status.second) == 0;
+}
+
+bool update_file_names(std::istream& is, file_list& list) {
+  std::string line;
+  while(std::getline(is, line)) {
+    file_info f;
+    f.offset = f.size = 0;
+    if(!parse_line(line, f))
+      continue;
+    auto cfile = find_file_in_list(list, f.fd, f.inode);
+    if(cfile == list.end())
+      continue;
+    cfile->size = f.size;
+    cfile->name.swap(f.name);
+  }
+  
+ 
   return true;
 }

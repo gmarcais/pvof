@@ -5,6 +5,7 @@
 #include <src/pvof.hpp>
 #include <src/pipe_open.hpp>
 #include <src/lsof.hpp>
+#include <src/print_info.hpp>
 
 pvof args; // The arguments
 volatile bool done = false; // Done if we catch a signal
@@ -24,18 +25,6 @@ int start_sub_command(std::vector<const char*> args) {
 
 
 
-void print_file_info(std::vector<file_info>& info_files) {
-  static int nb_lines = 0;
-
-  if(nb_lines)
-    std::cerr << "\033[" << nb_lines << "A";
-  
-  for(auto it = info_files.begin(); it != info_files.end(); ++it) {
-    std::cerr << "fd " << it->fd << " inode " << it->inode << " offset " << it->offset << "\n";
-  }
-
-  std::cout << std::flush;
-}
 
 int main(int argc, char *argv[])
 {
@@ -60,6 +49,8 @@ int main(int argc, char *argv[])
 
   if(!isatty(2))
     return 0;
+
+  prepare_display();
   
   char pid_str[100];
   snprintf(pid_str, sizeof(pid_str), "%d", pid);

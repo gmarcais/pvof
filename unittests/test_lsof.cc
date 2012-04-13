@@ -39,7 +39,7 @@ TEST(LSOF, parse_line) {
     "fmem\0a \0i134896\0\n",
     "f0\0au\0o0t0\0i234381\0\n",
     "f1\0au\0o0t0\0i234381\0\n",
-    "f10\0ar\0o0x2345a\0i5505713\0\n",
+    "f10\0ar\0s40382\0o0x2345a\0i5505713\0n/home/gus/Documents/test\0\n",
     0
   };
   for(const char** ptr = lines; *ptr; ++ptr) {
@@ -51,6 +51,8 @@ TEST(LSOF, parse_line) {
       EXPECT_EQ(10, f.fd);
       EXPECT_EQ((ino_t)5505713, f.inode);
       EXPECT_EQ((off_t)0x2345a, f.offset);
+      EXPECT_EQ((off_t)40382, f.size);
+      EXPECT_STREQ("/home/gus/Documents/test", f.name.c_str());
     }
   }
 }
@@ -91,4 +93,21 @@ TEST(LSOF, update_file_info) {
   EXPECT_TRUE(list[1].updated);
   EXPECT_EQ((off_t)0x435678, list[1].offset);
   EXPECT_TRUE(list[2].updated);
+
+  std::stringstream lsof_stream3;
+  const char* lines3[] = {
+    "f10\0ar\0s1024\0i452\0n/path/to/nname10\0\n",
+    "f2\0ar\0s123456\0i9876\0nrelative (on /raid)\0\n",
+    0
+  };
+  for(const char** ptr = lines3; *ptr; ++ptr)
+    lsof_stream3 << std::string(*ptr, (const char*)memchr(*ptr, '\n', 1024) - *ptr + 1);
+  res = update_file_names(lsof_stream3, list);
+  EXPECT_TRUE(res);
+  ASSERT_EQ((size_t)3, list.size());
+  EXPECT_STREQ("/path/to/nname10", list[1].name.c_str());
+  EXPECT_EQ((off_t)1024, list[1].size);
+  EXPECT_STREQ("relative (on /raid)", list[0].name.c_str());
+  EXPECT_EQ((off_t)123456, list[0].size);
+  EXPECT_TRUE(list[2].name.empty());
 }
