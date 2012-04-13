@@ -1,13 +1,11 @@
 AC_PREREQ([2.63])
-# TODO: change name (test), version (0.0.1) and contact email address
-# (me@me.com)
-AC_INIT([test], [0.0.1], [me@me.com])
+AC_INIT([pvof], [0.0.1], [gmarcais@umd.edu])
 AC_CONFIG_AUX_DIR([build-aux])
-# TODO: test.hpp may need to change to actual file
-AC_CONFIG_SRCDIR([src/test.hpp]) 
+AC_CONFIG_SRCDIR([src/pvof.cc]) 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([subdir-objects])
+AM_SILENT_RULES([yes])
 # Uncomment for creating libraries
 # AC_PROG_LIBTOOL
 
@@ -20,9 +18,15 @@ AC_PROG_CXX
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h])
 
-# Uncomment to get libraries via pkg-config
-# PKG_CHECK_MODULES([JELLYFISH], [jellyfish-1.1])
+# Check for yaggo
+AC_ARG_VAR([YAGGO], [Yaggo switch parser generator])
+AS_IF([test "x$YAGGO" = "x"], [AC_PATH_PROG([YAGGO], [yaggo], [false])])
 
+# lsof to use
+AC_ARG_VAR([LSOF], [Path to lsof])
+AS_IF([test "x$LSOF" = "x"], [AC_PATH_PROG([LSOF], [lsof])])
+AS_IF([test "x$LSOF" = "x"], [AC_MSG_ERROR([No lsof software found])])
+AC_DEFINE_UNQUOTED([LSOF], "$LSOF", [Path to lsof software])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL

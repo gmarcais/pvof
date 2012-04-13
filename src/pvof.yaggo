@@ -1,0 +1,13 @@
+purpose "Display progress of the files opened by a process"
+package "pvof"
+description ""
+
+option("p", "pid") {
+  description "Look at files of this process id"
+  int64 }
+option("n", "seconds") {
+  description "Number of seconds between updates"
+  int32; default "1" }
+arg("command") {
+  description "Process to launch"
+  c_string; multiple }
