@@ -59,7 +59,11 @@ fd_pid open_sub_process(const char* const cmd[], bool check_exec = true,
     ret = exec_command(sub_stdout, cmd, merge_stderr);
     // if reached here, a problem occurred. Send it to parent
     if(check_exec)
-      write(exec_worked[1], &ret, sizeof(ret));
+      // The loop is here to please gcc warning and using the output
+      // of write.
+      while(write(exec_worked[1], &ret, sizeof(ret)) == -1)
+        if(errno != EINTR)
+          break;
     _exit(1);
       
   default: // Parent
@@ -91,8 +95,9 @@ fd_pid open_sub_process(const char* const cmd[], bool check_exec = true,
 
 /** Same as open_sub_process but throw an exception in case of error.
  */
-fd_pid open_sub_process_throw(const char* const cmd[], bool check_exec = true) {
-  fd_pid ret = open_sub_process(cmd, check_exec);
+fd_pid open_sub_process_throw(const char* const cmd[], bool check_exec = true,
+                              bool merge_stderr = false) {
+  fd_pid ret = open_sub_process(cmd, check_exec, merge_stderr);
   if(ret.first == -1) {
     int save_errno = errno;
     std::string error("Failed to start command '");
@@ -109,8 +114,8 @@ fd_pid open_sub_process_throw(const char* const cmd[], bool check_exec = true) {
 }
 
 
-pipe_open::pipe_open(const char* const cmd[], bool check_exec) :
-  fd_pid(open_sub_process_throw(cmd, check_exec)),
+pipe_open::pipe_open(const char* const cmd[], bool check_exec, bool merge_stderr) :
+  fd_pid(open_sub_process_throw(cmd, check_exec, merge_stderr)),
   stream(new stdbuf(fd_pid::first, std::ios::in))
 {
   stdbuf* rdbuf = (stdbuf*)stream::rdbuf();

@@ -32,3 +32,9 @@ all_tests_SOURCES = unittests/gtest/gtest-all.cc unittests/gtest/gtest_main.cc u
 
 all_tests_SOURCES += unittests/test_pipe_open.cc src/pipe_open.cc	\
                      unittests/test_lsof.cc src/lsof.cc
+
+##############################
+# Testing program
+##############################
+check_PROGRAMS += slow_cat
+slow_cat_SOURCES = tests/slow_cat.cc

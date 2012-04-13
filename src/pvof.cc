@@ -7,7 +7,7 @@
 #include <src/lsof.hpp>
 
 pvof args; // The arguments
-volatile bool done; // Done if we catch a signal
+volatile bool done = false; // Done if we catch a signal
 
 int start_sub_command(std::vector<const char*> args) {
   int pid = fork();

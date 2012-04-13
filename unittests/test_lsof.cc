@@ -62,7 +62,7 @@ TEST(LSOF, update_file_info) {
     "fcwd\0a \0i2\0\n",
     "frtd\0a \0i2\0\n",
     "f2\0ar\0o0x2345\0i9876\0\n",
-    "f10\0ar\0o0x345678\0i452\0\n",
+    "f10\0ar\0o0t58\0i452\0\n",
     0
   };
   for(const char** ptr = lines; *ptr; ++ptr)
@@ -74,6 +74,7 @@ TEST(LSOF, update_file_info) {
   ASSERT_EQ((size_t)2, list.size());
   EXPECT_TRUE(list[0].updated);
   EXPECT_TRUE(list[1].updated);
+  EXPECT_EQ((off_t)58, list[1].offset);
 
   std::stringstream lsof_stream2;
   const char* lines2[] = {

@@ -24,8 +24,11 @@ bool parse_line(std::string& line, file_info& f) {
       break;
 
     case 'o': // Get offset
-      fields = sscanf(ptr, "o%li", &f.offset);
-      if(fields != 1) return false;
+      fields = sscanf(ptr, "o0t%ld", &f.offset);
+      if(fields != 1) {
+        fields = sscanf(ptr, "o%li", &f.offset);
+        if(fields != 1) return false;
+      }
       break;
 
     case 'i': // Get inode
@@ -44,9 +47,10 @@ bool parse_line(std::string& line, file_info& f) {
 }
 
 bool update_file_info(const char* pid_str, file_list& list) {
-  const char* cmd[] = { LSOF, "-p", pid_str, "-o", "-Ffiao0", 0 };
-  pipe_open offsets_pipe(cmd);
+  const char* cmd[] = { LSOF, "-p", pid_str, "-o0", "-o", "-Ffiao0", 0 };
+  pipe_open offsets_pipe(cmd, true, true);
   update_file_info(offsets_pipe, list);
+
   auto status = offsets_pipe.status();
   return status.first == 0 && 
     WIFEXITED(status.second) &&
