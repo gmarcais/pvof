@@ -77,10 +77,14 @@ void print_file_list(file_list& list) {
         std::cerr << "\033[1B";
     }
     std::cerr << "\r" << numerical_field_to_str(it->offset) << "/"
-              << numerical_field_to_str(it->size) << "  " 
-              << shorten_string(it->name, window_width - 15);
+              << numerical_field_to_str(it->size) << "  ";
+    if(!it->updated)
+      std::cerr << "\033[7m";
+    std::cerr << shorten_string(it->name, window_width - 15);
+    if(!it->updated)
+      std::cerr << "\033[0m";
   }
-  std::cout << std::flush;
+  std::cerr << "\033[0m" << std::flush;
 
   nb_lines = list.size();
 }
