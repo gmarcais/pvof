@@ -2,25 +2,36 @@
 #include <time.h>
 #include <iostream>
 #include <fstream>
+#include <vector>
 
-const struct timespec tenth_second = { 0, 100000000L };
-void slow_copy(std::istream& is) {
+const struct timespec tenth_second = { 0, 10000000L };
+typedef std::vector<std::istream*> fd_list;
+
+bool cat_one_line(fd_list& fds) {
   std::string line;
+  bool ret = false;
 
-  while(getline(is, line)) {
-    std::cout << line << "\n";
-    nanosleep(&tenth_second, 0);
+  for(auto it = fds.begin(); it != fds.end(); ++it) {
+    if(std::getline(**it, line)) {
+      ret = true;
+      std::cout << line << "\n";
+    }
   }
+  
+  return ret;
 }
 
 int main(int argc, char* argv[]) {
-  if(argc == 1)
-    slow_copy(std::cin);
-  else
-    for(int i = 1; i < argc; ++i) {
-      std::ifstream input(argv[i]);
-      slow_copy(input);
-    }
+  fd_list fds(argc - 1);
+  
+  for(int i = 1; i < argc; ++i)
+    fds[i-1] = new std::ifstream((argv[i]));
+
+  while(true) {
+    if(!cat_one_line(fds))
+      break;
+    nanosleep(&tenth_second, 0);
+  }
 
   return 0;
 }

@@ -61,7 +61,6 @@ bool update_file_info(const char* pid_str, file_list& list) {
   pipe_open offsets_pipe(cmd, true, true);
   if(update_file_info(offsets_pipe, list))
     return_status = return_status && update_file_names(pid_str, list);
-  std::cerr << "return_status " << return_status << std::endl;
 
   auto status = offsets_pipe.status();
   return_status = return_status &&
@@ -103,8 +102,6 @@ bool update_file_names(const char* pid_str, file_list& list) {
   update_file_names(names_pipe, list);
   
   auto status = names_pipe.status();
-  std::cerr << status.first << " " << WIFEXITED(status.second) << " "
-            << WEXITSTATUS(status.second) << std::endl;
   return status.first == 0 && 
     WIFEXITED(status.second) &&
     WEXITSTATUS(status.second) == 0;

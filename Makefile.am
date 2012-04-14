@@ -31,7 +31,8 @@ all_tests_LDFLAGS = -lpthread
 all_tests_SOURCES = unittests/gtest/gtest-all.cc unittests/gtest/gtest_main.cc unittests/gtest/gtest.h
 
 all_tests_SOURCES += unittests/test_pipe_open.cc src/pipe_open.cc	\
-                     unittests/test_lsof.cc src/lsof.cc
+                     unittests/test_lsof.cc src/lsof.cc			\
+                     unittests/test_display.cc src/print_info.cc
 
 ##############################
 # Testing program

@@ -60,9 +60,10 @@ int main(int argc, char *argv[])
     bool success = update_file_info(pid_str, info_files);
     if(!success)
       break;
-    print_file_info(info_files);
+    print_file_list(info_files);
     sleep(args.seconds_arg);
   }
+  std::cerr << std::endl;
 
   return 0;
 }
