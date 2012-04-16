@@ -4,18 +4,22 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <src/timespec.hpp>
 
 // Information kept about one file
 struct file_info {
-  int         fd;
-  ino_t       inode;
-  std::string name;
-  off_t       offset;
-  off_t       size;
-  bool        updated;
+  int             fd;
+  ino_t           inode;
+  std::string     name;
+  off_t           offset;
+  off_t           size;
+  double          speed;
+  bool            updated;
+  struct timespec stamp;
 };
 // A file is uniquely indexed by the pair (fd, inode)
 struct find_file {
@@ -35,10 +39,10 @@ bool parse_line(std::string& line, file_info& f);
 
 // Exec lsof -F on the given pid and update the corresponding list of
 // file information (mainly the offset).
-bool update_file_info(const char* pid_str, file_list& list);
+bool update_file_info(const char* pid_str, file_list& list, timespec& stamp);
 // Update list of file information from input stream (most likely a
 // pipe from lsof -F).
-bool update_file_info(std::istream& is, file_list& list);
+bool update_file_info(std::istream& is, file_list& list, timespec& stamp);
 
 // Exec lsof -F to get the file size and name information.
 bool update_file_names(const char* pid_str, file_list& list);

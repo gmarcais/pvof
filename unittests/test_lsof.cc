@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <src/lsof.hpp>
+#include <src/timespec.hpp>
 
 TEST(LSOF, find_file_in_list) {
   file_list list;
@@ -70,12 +71,15 @@ TEST(LSOF, update_file_info) {
   for(const char** ptr = lines; *ptr; ++ptr)
     lsof_stream << std::string(*ptr, (const char*)memchr(*ptr, '\n', 1024) - *ptr + 1);
 
+  timespec stamp = { 5, 2345 };
   file_list list;
-  bool res = update_file_info(lsof_stream, list);
+  bool res = update_file_info(lsof_stream, list, stamp);
   EXPECT_TRUE(res);
   ASSERT_EQ((size_t)2, list.size());
   EXPECT_TRUE(list[0].updated);
+  EXPECT_EQ(stamp, list[0].stamp);
   EXPECT_TRUE(list[1].updated);
+  EXPECT_EQ(stamp, list[1].stamp);
   EXPECT_EQ((off_t)58, list[1].offset);
 
   std::stringstream lsof_stream2;
@@ -84,15 +88,19 @@ TEST(LSOF, update_file_info) {
     "f11\0ar\0o0\0i1\0\n",
     0
   };
+  timespec new_stamp = stamp + 5;
   for(const char** ptr = lines2; *ptr; ++ptr)
     lsof_stream2 << std::string(*ptr, (const char*)memchr(*ptr, '\n', 1024) - *ptr + 1);
-  res = update_file_info(lsof_stream2, list);
+  res = update_file_info(lsof_stream2, list, new_stamp);
   EXPECT_TRUE(res);
   ASSERT_EQ((size_t)3, list.size());
   EXPECT_FALSE(list[0].updated);
+  EXPECT_EQ(stamp, list[0].stamp);
   EXPECT_TRUE(list[1].updated);
+  EXPECT_EQ(new_stamp, list[1].stamp);
   EXPECT_EQ((off_t)0x435678, list[1].offset);
   EXPECT_TRUE(list[2].updated);
+  EXPECT_EQ(new_stamp, list[2].stamp);
 
   std::stringstream lsof_stream3;
   const char* lines3[] = {

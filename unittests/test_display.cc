@@ -3,7 +3,7 @@
 
 TEST(Print, int) {
   struct val_str {
-    long val;
+    long        val;
     const char* str;
   };
   const val_str tests[] = {
@@ -16,6 +16,27 @@ TEST(Print, int) {
     { 0, "" }
   };
 
+  for(const val_str *t = tests; t->val; ++t) {
+    std::string res = numerical_field_to_str(t->val);
+    EXPECT_STREQ(t->str, res.c_str());
+  }
+}
+
+TEST(Print, double) {
+  struct val_str {
+    double      val;
+    const char* str;
+  };
+  const val_str tests[] = {
+    { 5.32e10,    " 53.2G" },
+    { 3e30,       "+infty" },
+    { -10e27,     "-infty" },
+    { 0.5,        "  500m" },
+    { -12345e-15, "-12.3p" },
+    { 1e-30,      "    0 " },
+    { -1e-40,     "   -0 " },
+    { 0.0, 0 }
+  };
   for(const val_str *t = tests; t->val; ++t) {
     std::string res = numerical_field_to_str(t->val);
     EXPECT_STREQ(t->str, res.c_str());

@@ -6,6 +6,7 @@
 #include <src/pipe_open.hpp>
 #include <src/lsof.hpp>
 #include <src/print_info.hpp>
+#include <src/timespec.hpp>
 
 pvof args; // The arguments
 volatile bool done = false; // Done if we catch a signal
@@ -56,12 +57,26 @@ int main(int argc, char *argv[])
   snprintf(pid_str, sizeof(pid_str), "%d", pid);
   std::vector<file_info> info_files;
 
+  timespec time_tick;
+  if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
+    std::cerr << "Can't get time" << std::endl;
+    return 1;
+  }
+
   while(!done) {
-    bool success = update_file_info(pid_str, info_files);
+    bool success = update_file_info(pid_str, info_files, time_tick);
     if(!success)
       break;
     print_file_list(info_files);
-    sleep(args.seconds_arg);
+
+    time_tick += args.seconds_arg;
+    timespec current_time;
+    clock_gettime(CLOCK_MONOTONIC, &current_time);
+    if(time_tick < current_time) {
+      time_tick  = current_time;
+      time_tick += 1;
+    }
+    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &time_tick, 0);
   }
   std::cerr << std::endl;
 

@@ -55,11 +55,11 @@ bool parse_line(std::string& line, file_info& f) {
   return true;
 }
 
-bool update_file_info(const char* pid_str, file_list& list) {
+bool update_file_info(const char* pid_str, file_list& list, timespec& stamp) {
   bool return_status = true;
   const char* cmd[] = { LSOF, "-p", pid_str, "-o0", "-o", "-Ffiao0", 0 };
   pipe_open offsets_pipe(cmd, true, true);
-  if(update_file_info(offsets_pipe, list))
+  if(update_file_info(offsets_pipe, list, stamp))
     return_status = return_status && update_file_names(pid_str, list);
 
   auto status = offsets_pipe.status();
@@ -70,7 +70,7 @@ bool update_file_info(const char* pid_str, file_list& list) {
   return return_status;
 }
 
-bool update_file_info(std::istream& is, file_list& list) {
+bool update_file_info(std::istream& is, file_list& list, timespec& stamp) {
   std::string line;
   
   for(auto it = list.begin(); it != list.end(); ++it)
@@ -84,13 +84,18 @@ bool update_file_info(std::istream& is, file_list& list) {
       continue;
     auto cfile = find_file_in_list(list, f.fd, f.inode);
     if(cfile == list.end()) {
+      // Append new entry
       need_updated_name = true;
-      f.updated = true;
+      f.updated         = true;
+      f.stamp           = stamp;
       list.push_back(f);
-    } else {
-      cfile->offset  = f.offset;
-      cfile->updated = true;
-    }
+      continue;
+    } 
+    // Update existing entry
+    cfile->speed   = (f.offset - cfile->offset) / timespec_double(stamp - (cfile->stamp));
+    cfile->offset  = f.offset;
+    cfile->updated = true;
+    cfile->stamp   = stamp;
   }
 
   return need_updated_name;
