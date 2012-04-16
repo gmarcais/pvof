@@ -17,6 +17,7 @@ struct file_info {
   std::string     name;
   off_t           offset;
   off_t           size;
+  bool            writable;
   double          speed;
   bool            updated;
   struct timespec stamp;

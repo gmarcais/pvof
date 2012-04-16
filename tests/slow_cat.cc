@@ -26,7 +26,7 @@ bool cat_one_line(fd_list& fds) {
 
 int main(int argc, char* argv[]) {
   fd_list fds(argc - 1);
-  
+  std::cerr << getpid() << std::endl;
   auto it = fds.begin();
   for(int i = 1; i < argc; ++i, ++it)
     *it = new std::ifstream((argv[i]));

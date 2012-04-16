@@ -38,9 +38,9 @@ TEST(LSOF, parse_line) {
     "fmem\0a \0i9183059\0\n",
     "fmem\0a \0i135483\0\n",
     "fmem\0a \0i134896\0\n",
-    "f0\0au\0o0t0\0i234381\0\n",
-    "f1\0au\0o0t0\0i234381\0\n",
-    "f10\0ar\0s40382\0o0x2345a\0i5505713\0n/home/gus/Documents/test\0\n",
+    "f0\0a \0tREG\0o0t0\0i234381\0\n",
+    "f1\0au\0tCHR\0o0t0\0i234381\0\n",
+    "f10\0ar\0tREG\0s40382\0o0x2345a\0i5505713\0n/home/gus/Documents/test\0\n",
     0
   };
   for(const char** ptr = lines; *ptr; ++ptr) {

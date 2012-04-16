@@ -19,8 +19,20 @@ bool parse_line(std::string& line, file_info& f) {
       if(fields != 1) return false;
       break;
 
-    case 'a': // Get access rights. Handle read only file for now
-      if(ptr[1] != 'r') return false;
+    case 't': // Accept only regular file
+      if(strcmp("tREG", ptr)) return false;
+      break;
+
+    case 'a': // Get access rights. Writable and read/write are the same
+      switch(ptr[1]) {
+      case 'r': 
+        f.writable = false; break;
+      case 'w':
+      case 'u':
+        f.writable = true; break;
+      default:
+        return false;
+      }
       break;
 
     case 'o': // Get offset
@@ -57,7 +69,7 @@ bool parse_line(std::string& line, file_info& f) {
 
 bool update_file_info(const char* pid_str, file_list& list, timespec& stamp) {
   bool return_status = true;
-  const char* cmd[] = { LSOF, "-p", pid_str, "-o0", "-o", "-Ffiao0", 0 };
+  const char* cmd[] = { LSOF, "-p", pid_str, "-o0", "-o", "-Fftiao0", 0 };
   pipe_open offsets_pipe(cmd, true, true);
   if(update_file_info(offsets_pipe, list, stamp))
     return_status = return_status && update_file_names(pid_str, list);

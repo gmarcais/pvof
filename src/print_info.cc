@@ -96,9 +96,12 @@ void print_file_list(file_list& list) {
       else
         std::cerr << "\033[1B";
     }
-    std::cerr << "\r" << numerical_field_to_str(it->offset) << "/"
-              << numerical_field_to_str(it->size) 
-              << numerical_field_to_str(it->speed) << "/s" 
+    std::cerr << "\r" << numerical_field_to_str(it->offset) << "/";
+    if(it->writable) // Don't display size on writable files
+      std::cerr << "   -  ";
+    else
+      std::cerr << numerical_field_to_str(it->size);
+    std::cerr << ":" << numerical_field_to_str(it->speed) << "/s" 
               << "  ";
     if(!it->updated)
       std::cerr << "\033[7m";
