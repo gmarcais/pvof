@@ -1,4 +1,4 @@
-AM_CXXFLAGS = -Wall -Werror -g -O2 -std=c++0x -I$(top_srcdir)/src
+AM_CXXFLAGS = -Wall -Werror -g -O2 -std=c++0x -I$(top_srcdir)
 AM_LDFLAGS = -lrt
 
 noinst_HEADERS = $(BUILT_SOURCES)
@@ -19,8 +19,10 @@ yaggo.cpp yaggo.hpp:
 # Programs
 ##############################
 bin_PROGRAMS = pvof
-pvof_SOURCES = src/pvof.cc src/pipe_open.cc src/lsof.cc	\
-               src/print_info.cc src/timespec.cc
+pvof_SOURCES = src/pvof.cc src/pipe_open.cc src/lsof.cc			\
+               src/print_info.cc src/timespec.cc src/print_info.hpp	\
+               src/lsof.hpp src/pvof.hpp src/timespec.hpp		\
+               src/pipe_open.hpp
 BUILT_SOURCES += src/pvof.hpp
 
 ##############################

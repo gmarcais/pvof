@@ -1,7 +1,7 @@
 #ifndef __PRINT_INFO_HPP__
 #define __PRINT_INFO_HPP__
 
-#include <lsof.hpp>
+#include <src/lsof.hpp>
 
 void prepare_display();
 void print_file_list(file_list& list);

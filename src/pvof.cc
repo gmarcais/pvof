@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <signal.h>
 #include <iostream>
 #include <algorithm>
 #include <config.h>
@@ -10,6 +11,20 @@
 
 pvof args; // The arguments
 volatile bool done = false; // Done if we catch a signal
+
+// Stop on TERM and QUIT signals
+void sig_termination_handler(int s) {
+  done = true;
+}
+void prepare_termination() {
+  struct sigaction act;
+  memset(&act, '\0', sizeof(act));
+  act.sa_handler = sig_termination_handler;
+  sigaction(SIGTERM, &act, 0);
+  sigaction(SIGQUIT, &act, 0);
+  sigaction(SIGINT, &act, 0);
+}
+
 
 int start_sub_command(std::vector<const char*> args) {
   int pid = fork();
@@ -51,6 +66,7 @@ int main(int argc, char *argv[])
   if(!isatty(2))
     return 0;
 
+  prepare_termination();
   prepare_display();
   
   char pid_str[100];
