@@ -36,14 +36,14 @@ typedef std::vector<file_info> file_list;
 file_list::iterator find_file_in_list(file_list& list, int fd, ino_t inode);
 
 // Parse a line of the output of lsof -F and fill up f
-bool parse_line(std::string& line, file_info& f);
+bool parse_line(std::string& line, file_info& f, bool& failed);
 
 // Exec lsof -F on the given pid and update the corresponding list of
 // file information (mainly the offset).
 bool update_file_info(const char* pid_str, file_list& list, timespec& stamp);
 // Update list of file information from input stream (most likely a
 // pipe from lsof -F).
-bool update_file_info(std::istream& is, file_list& list, timespec& stamp);
+bool update_file_info(std::istream& is, file_list& list, timespec& stamp, bool& need_updated_name);
 
 // Exec lsof -F to get the file size and name information.
 bool update_file_names(const char* pid_str, file_list& list);

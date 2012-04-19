@@ -45,8 +45,10 @@ TEST(LSOF, parse_line) {
   };
   for(const char** ptr = lines; *ptr; ++ptr) {
     std::string line(*ptr, (const char*)memchr(*ptr, '\n', 1024) - *ptr);
-    file_info f;
-    bool res = parse_line(line, f);
+    file_info   f;
+    bool        failed;
+    bool        res = parse_line(line, f, failed);
+    EXPECT_FALSE(failed);
     EXPECT_EQ(ptr - lines == 9, res);
     if(res) {
       EXPECT_EQ(10, f.fd);
@@ -56,6 +58,15 @@ TEST(LSOF, parse_line) {
       EXPECT_STREQ("/home/gus/Documents/test", f.name.c_str());
     }
   }
+}
+
+TEST(LSOF, failed_parse) {
+  std::string line("fNOFD\0\n");
+  file_info   f;
+  bool        failed;
+  bool        res = parse_line(line, f, failed);
+  EXPECT_FALSE(res);
+  EXPECT_TRUE(failed);
 }
 
 TEST(LSOF, update_file_info) {
@@ -73,8 +84,10 @@ TEST(LSOF, update_file_info) {
 
   timespec stamp = { 5, 2345 };
   file_list list;
-  bool res = update_file_info(lsof_stream, list, stamp);
+  bool need_updated_name;
+  bool res = update_file_info(lsof_stream, list, stamp, need_updated_name);
   EXPECT_TRUE(res);
+  EXPECT_TRUE(need_updated_name);
   ASSERT_EQ((size_t)2, list.size());
   EXPECT_TRUE(list[0].updated);
   EXPECT_EQ(stamp, list[0].stamp);
@@ -91,8 +104,9 @@ TEST(LSOF, update_file_info) {
   timespec new_stamp = stamp + 5;
   for(const char** ptr = lines2; *ptr; ++ptr)
     lsof_stream2 << std::string(*ptr, (const char*)memchr(*ptr, '\n', 1024) - *ptr + 1);
-  res = update_file_info(lsof_stream2, list, new_stamp);
+  res = update_file_info(lsof_stream2, list, new_stamp, need_updated_name);
   EXPECT_TRUE(res);
+  EXPECT_TRUE(need_updated_name);
   ASSERT_EQ((size_t)3, list.size());
   EXPECT_FALSE(list[0].updated);
   EXPECT_EQ(stamp, list[0].stamp);
