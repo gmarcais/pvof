@@ -77,10 +77,35 @@ std::string numerical_field_to_str(double val) {
   return std::string(res);
 }
 
+struct time_suffix {
+  double seconds;
+  char   suffix;
+};
+static const time_suffix time_suffixes[] =
+  { { 1.0, 's' }, { 60.0, 'm' }, { 3600.0, 'h' }, { 86400.0, 'd' }, { 86400.0 * 365.25, 'y' }, { 86400.0 * 365.25 * 10.0, ' ' } };
+static const size_t nb_time_suffixes = sizeof(time_suffixes) / sizeof(time_suffix);
+std::string seconds_to_str(double seconds) {
+  char res[10];
+  if(seconds < 1.0) {
+    return std::string("  < 1s");
+  }
+  for(size_t i = 1; i < nb_time_suffixes; ++i) {
+    if(seconds < time_suffixes[i].seconds) {
+      snprintf(res, sizeof(res), "% 5.3g%c", seconds / time_suffixes[i-1].seconds, 
+              time_suffixes[i-1].suffix);
+      return std::string(res);
+    }
+  }
+  // More than a 100 years!
+  
+  return std::string(" > 10y");
+}
+
 void print_file_list(file_list& list) {
   static const int header_width = 
     6 /* offset */ + 1 /* slash */ + 6 /* size */ + 
-    1 /* column */ + 8 /* speed */ + 2 /* spaces */;
+    1 /* column */ + 8 /* speed */ + 1 /* column */ +
+    6 /* eta */    + 2 /* spaces */;
     
     
   static int nb_lines = 0;
@@ -101,8 +126,12 @@ void print_file_list(file_list& list) {
       std::cerr << "   -  ";
     else
       std::cerr << numerical_field_to_str(it->size);
-    std::cerr << ":" << numerical_field_to_str(it->speed) << "/s" 
-              << "  ";
+    std::cerr << ":" << numerical_field_to_str(it->speed) << "/s:";
+    if(it->writable || it->speed == 0.0)
+      std::cerr << "   -  ";
+    else
+      std::cerr << seconds_to_str((it->size - it->offset) / it->speed);
+    std::cerr << "  ";
     if(!it->updated)
       std::cerr << "\033[7m";
     std::cerr << shorten_string(it->name, window_width - header_width);

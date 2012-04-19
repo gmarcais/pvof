@@ -61,3 +61,25 @@ TEST(Print, shorten_string) {
     EXPECT_STREQ(ptr->out, res.c_str());
   }
 }
+
+TEST(Print, time) {
+  struct val_res {
+    const double in;
+    const char*  out;
+  };
+  const val_res tests[] = {
+    { 0.523,      "  < 1s" },
+    { -0.005432,  "  < 1s" },
+    { 5.2,        "  5.2s" },
+    { 125,        " 2.08m" },
+    { 10000,      " 2.78h" },
+    { 100000,     " 1.16d" },
+    { 1000000000, " > 10y" },
+    { 0.0,        "" }
+  };
+  for(const val_res* ptr = tests; ptr->in; ++ptr) {
+    std::string res = seconds_to_str(ptr->in);
+    EXPECT_STREQ(ptr->out, res.c_str());
+  }
+  
+}

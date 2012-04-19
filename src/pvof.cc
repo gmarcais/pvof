@@ -94,7 +94,8 @@ int main(int argc, char *argv[])
     }
     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &time_tick, 0);
   }
-  std::cerr << std::endl;
+  
+  std::cerr << "\033[0m" << std::endl;
 
   return 0;
 }
