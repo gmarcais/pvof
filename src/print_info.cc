@@ -110,6 +110,11 @@ void print_file_list(file_list& list) {
     
   static int nb_lines = 0;
 
+  if(nb_lines == 0 && list.empty()) {
+    std::cerr << "\r --- No regular file open ---";
+    return;
+  }
+
   if(nb_lines > 1)
     std::cerr << "\033[" << (nb_lines - 1) << "A";
 
