@@ -1,6 +1,7 @@
 purpose "Display progress of the files opened by a process"
 package "pvof"
 description ""
+posix # Don't switch arguments around
 
 option("p", "pid") {
   description "Look at files of this process id"
