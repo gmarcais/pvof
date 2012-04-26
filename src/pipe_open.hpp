@@ -5,7 +5,8 @@
 #include <string>
 #include <iostream>
 
-class pipe_open : public std::pair<int, int>, public std::istream {
+typedef std::pair<int, pid_t> fd_pid;
+class pipe_open : public fd_pid, public std::istream {
   typedef std::istream stream;
   typedef __gnu_cxx::stdio_filebuf<char> stdbuf;
 public:
@@ -23,7 +24,7 @@ public:
   /** Wait on the subprocess upon destruction. */
   virtual ~pipe_open();
   /** Get the status of the sub-process. This will wait on the sub-process. */
-  std::pair<int, pid_t> status(bool no_hang = false);
+  fd_pid status(bool no_hang = false);
 };
 
 #endif /* _PIPE_OPEN_H_ */

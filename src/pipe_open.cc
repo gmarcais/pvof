@@ -33,7 +33,6 @@ int exec_command(int pipe_fd[2], const char* const cmd[], bool merge_stderr) {
     could come from pipe(2), fork(2), fcntl(2), dup2(2), close(2) or
     execvp(3).
 */
-typedef std::pair<int, int> fd_pid;
 fd_pid open_sub_process(const char* const cmd[], bool check_exec = true,
                         bool merge_stderr = false) {
   // pipe to tell whether the exec call worked
@@ -123,7 +122,10 @@ pipe_open::pipe_open(const char* const cmd[], bool check_exec, bool merge_stderr
     stream::setstate(std::ios::badbit);
 }
 
-pipe_open::~pipe_open() { status(); }
+pipe_open::~pipe_open() { 
+  status();
+  close(fd_pid::first);
+}
 
 std::pair<int, pid_t> pipe_open::status(bool no_hang) {
   pid_t status = -1;
