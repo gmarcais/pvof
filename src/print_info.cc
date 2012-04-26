@@ -126,16 +126,24 @@ void print_file_list(file_list& list) {
       else
         std::cerr << "\033[1B";
     }
+    // Print offset
     std::cerr << "\r" << numerical_field_to_str(it->offset) << "/";
+    // Print file size
     if(it->writable) // Don't display size on writable files
       std::cerr << "   -  ";
     else
       std::cerr << numerical_field_to_str(it->size);
+    // Print speed
     std::cerr << ":" << numerical_field_to_str(it->speed) << "/s:";
+    // Display ETA
     if(it->writable || it->speed == 0.0)
       std::cerr << "   -  ";
-    else
-      std::cerr << seconds_to_str((it->size - it->offset) / it->speed);
+    else {
+      double eta = it->speed > 0 
+        ? (it->size - it->offset) / it->speed
+        : it->offset / (-it->speed);
+      std::cerr << seconds_to_str(eta);
+    }
     std::cerr << "  ";
     if(!it->updated)
       std::cerr << "\033[7m";
