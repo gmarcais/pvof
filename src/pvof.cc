@@ -1,13 +1,20 @@
 #include <unistd.h>
 #include <signal.h>
-#include <iostream>
-#include <algorithm>
-#include <config.h>
-#include <src/pvof.hpp>
+#include <stdlib.h>
 #include <src/pipe_open.hpp>
 #include <src/lsof.hpp>
 #include <src/print_info.hpp>
 #include <src/timespec.hpp>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+#include <iostream>
+#include <algorithm>
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+#include <src/pvof.hpp>
 
 pvof args; // The arguments
 volatile bool done = false; // Done if we catch a signal
@@ -23,6 +30,7 @@ void prepare_termination() {
   sigaction(SIGTERM, &act, 0);
   sigaction(SIGQUIT, &act, 0);
   sigaction(SIGINT, &act, 0);
+  sigaction(SIGALRM, &act, 0);
 }
 
 
@@ -39,7 +47,34 @@ int start_sub_command(std::vector<const char*> args) {
   return pid;
 }
 
+void wait_sub_command(pid_t pid) {
+  // Wait for sub command for at most 1 second
+  alarm(1);
+  int status;
+  pid_t res = waitpid(pid, &status, 0);
+  switch(res) {
+  case -1: // Ignore error. Probably timeout
+  case 0: return;
+  default: break;
+  }
 
+  if(WIFEXITED(status))
+    exit(WEXITSTATUS(status));
+  if(WIFSIGNALED(status)) {
+    // Restore signal to default setting.
+    struct sigaction act;
+    memset(&act, '\0', sizeof(act));
+    act.sa_handler = SIG_DFL;
+    sigaction(WTERMSIG(status), &act, 0); // Ignore failure here?
+    
+    // Kill myself with this signal
+    kill(getpid(), WTERMSIG(status));
+  }
+  
+  // Should not be reached. The process should have exited or killed
+  // itself. Exit with an error if it failed.
+  exit(EXIT_FAILURE);
+}
 
 
 int main(int argc, char *argv[])
@@ -97,5 +132,10 @@ int main(int argc, char *argv[])
   
   std::cerr << "\033[0m" << std::endl;
 
+  
+  // If we started the subprocess, get return value or kill
+  // signal. Make pvof "transparent".
+  wait_sub_command(pid);
+  
   return 0;
 }

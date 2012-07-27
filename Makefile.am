@@ -19,10 +19,12 @@ yaggo.cpp yaggo.hpp:
 # Programs
 ##############################
 bin_PROGRAMS = pvof
+noinst_PROGRAMS = wstatus
 pvof_SOURCES = src/pvof.cc src/pipe_open.cc src/lsof.cc			\
                src/print_info.cc src/timespec.cc src/print_info.hpp	\
                src/lsof.hpp src/pvof.hpp src/timespec.hpp		\
                src/pipe_open.hpp
+wstatus_SOURCES = src/wstatus.cc
 BUILT_SOURCES += src/pvof.hpp
 
 ##############################
