@@ -25,17 +25,21 @@ bool cat_one_line(fd_list& fds) {
 }
 
 int main(int argc, char* argv[]) {
-  fd_list fds(argc - 1);
+  fd_list fds;
   std::cerr << getpid() << std::endl;
-  sleep(5);
-  auto it = fds.begin();
-  for(int i = 1; i < argc; ++i, ++it)
-    *it = new std::ifstream((argv[i]));
+  sleep(2);
+  
+  // for(int i = 1; i < argc; ++i, ++it)
+  //   *it = new std::ifstream((argv[i]));
+  int i = 1;
+  unsigned long j = 0;
 
   while(true) {
-    if(!cat_one_line(fds))
+    if(!cat_one_line(fds) && i >= argc)
       break;
     nanosleep(&tenth_second, 0);
+    if(++j % 64 == 0 && i < argc)
+      fds.push_back(new std::ifstream(argv[i++]));
   }
 
   return 0;

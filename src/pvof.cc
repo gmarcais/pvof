@@ -114,28 +114,34 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  bool need_newline = false;
   while(!done) {
     bool success = update_file_info(pid_str, info_files, time_tick);
     if(!success)
       break;
     print_file_list(info_files);
+    need_newline = true;
 
-    time_tick += args.seconds_arg;
     timespec current_time;
     clock_gettime(CLOCK_MONOTONIC, &current_time);
     if(time_tick < current_time) {
       time_tick  = current_time;
-      time_tick += 1;
+      time_tick += args.seconds_arg;
     }
     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &time_tick, 0);
   }
   
-  std::cerr << "\033[0m" << std::endl;
+  std::cerr << "\033[0m";
+  if(need_newline)
+    std::cerr << std::endl;
+  else
+    std::cerr << std::flush;
 
   
   // If we started the subprocess, get return value or kill
   // signal. Make pvof "transparent".
-  wait_sub_command(pid);
+  if(!args.command_arg.empty())
+    wait_sub_command(pid);
   
   return 0;
 }

@@ -42,8 +42,11 @@ int get_window_width() {
 }
 
 std::string shorten_string(std::string s, unsigned int length) {
-  if(s.size() <= length)
+  if(s.size() <= length) {
+    std::string padding(length - s.size(), ' ');
+    s += padding;
     return s;
+  }
   std::string res("...");
   res += s.substr(s.size() - length + 3, length - 3);
   return res;
@@ -106,26 +109,33 @@ void print_file_list(file_list& list) {
     6 /* offset */ + 1 /* slash */ + 6 /* size */ + 
     1 /* column */ + 8 /* speed */ + 1 /* column */ +
     6 /* eta */    + 2 /* spaces */;
-    
-    
+  static bool printed_no_file = false;
   static int nb_lines = 0;
 
   if(nb_lines == 0 && list.empty()) {
     std::cerr << "\r --- No regular file open ---";
+    printed_no_file = true;
     return;
   }
 
+  if((int)list.size() > nb_lines) {
+    int new_lines = list.size() - nb_lines;
+    if(printed_no_file)
+      new_lines -= 2;
+    printed_no_file = false;
+    if(new_lines > 0)
+      std::cerr << "\033[" << new_lines << "S";
+  }
+
+  nb_lines = list.size();
   if(nb_lines > 1)
     std::cerr << "\033[" << (nb_lines - 1) << "A";
 
   int window_width = get_window_width();
   for(auto it = list.begin(); it != list.end(); ++it) {
-    if(it != list.begin()) {
-      if(it - list.begin() > nb_lines)
-        std::cerr << "\n";
-      else
-        std::cerr << "\033[1B";
-    }
+    if(it != list.begin())
+      std::cerr << "\033[1B";
+
     // Print offset
     std::cerr << "\r" << numerical_field_to_str(it->offset) << "/";
     // Print file size
@@ -152,6 +162,4 @@ void print_file_list(file_list& list) {
       std::cerr << "\033[0m";
   }
   std::cerr << "\033[0m" << std::flush;
-
-  nb_lines = list.size();
 }
