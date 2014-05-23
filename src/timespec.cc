@@ -33,6 +33,10 @@ bool operator==(const timespec& x, const timespec& y) {
   return x.tv_sec == y.tv_sec && x.tv_nsec == y.tv_nsec;
 }
 
+bool operator!=(const timespec& x, const timespec& y) {
+  return !(x == y);
+}
+
 timespec& operator-=(timespec& x, const timespec& y) {
   x.tv_sec -= y.tv_sec;
   x.tv_nsec -= y.tv_nsec;

@@ -9,6 +9,9 @@ option("p", "pid") {
 option("n", "seconds") {
   description "Number of seconds between updates"
   int32; default "1" }
+option("lsof") {
+  description "Force using lsof, instead of /proc/<pid>/fdinfo"
+  off }
 arg("command") {
   description "Process to launch"
   c_string; multiple }

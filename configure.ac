@@ -22,6 +22,12 @@ AC_CHECK_HEADERS([stdlib.h string.h])
 AC_ARG_VAR([YAGGO], [Yaggo switch parser generator])
 AS_IF([test "x$YAGGO" = "x"], [AC_PATH_PROG([YAGGO], [yaggo], [false])])
 
+# Check if support /proc/<pid>/fdinfo
+AC_ARG_ENABLE([proc], [AS_HELP_STRING([--enable-proc], [Use /proc/<pid>/fdinfo directly, instead of lsof])])
+AS_IF([test "x$enable_proc" = "x"],
+      [AC_CHECK_FILES([/proc/self/fdinfo /proc/self/fd], [enable_proc=yes])])
+AS_IF([test "x$enable_proc" = "xyes"], [AC_DEFINE([HAVE_PROC], [1], [Use fd information in proc])])
+
 # lsof to use
 AC_ARG_VAR([LSOF], [Path to lsof])
 AS_IF([test "x$LSOF" = "x"], [AC_PATH_PROG([LSOF], [lsof])])

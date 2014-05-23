@@ -18,10 +18,10 @@ V_YAGGO_0 = @echo "  YAGGO " $@;
 ##############################
 bin_PROGRAMS = pvof
 
-pvof_SOURCES = src/pvof.cc src/pipe_open.cc src/lsof.cc			\
-               src/print_info.cc src/timespec.cc src/print_info.hpp	\
-               src/lsof.hpp src/pvof.hpp src/timespec.hpp		\
-               src/pipe_open.hpp
+pvof_SOURCES = src/pvof.cc src/pipe_open.cc src/lsof.cc		\
+               src/print_info.cc src/timespec.cc src/proc.cc	\
+               src/print_info.hpp src/lsof.hpp src/pvof.hpp	\
+               src/timespec.hpp src/pipe_open.hpp
 BUILT_SOURCES += src/pvof.hpp
 
 ##############################
@@ -34,9 +34,9 @@ all_tests_LDFLAGS = -lpthread
 all_tests_SOURCES = unittests/gtest/gtest-all.cc unittests/gtest/gtest_main.cc unittests/gtest/gtest.h
 
 all_tests_SOURCES += unittests/test_pipe_open.cc src/pipe_open.cc	\
-                     unittests/test_lsof.cc src/lsof.cc			\
-                     unittests/test_display.cc src/print_info.cc	\
-                     src/timespec.cc
+                     unittests/test_lsof.cc unittests/test_proc.cc	\
+                     src/lsof.cc unittests/test_display.cc		\
+                     src/print_info.cc src/timespec.cc src/proc.cc
 
 ##############################
 # Testing program

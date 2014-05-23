@@ -15,6 +15,7 @@
 #include <config.h>
 #endif
 #include <src/pvof.hpp>
+#include <src/proc.hpp>
 
 pvof args; // The arguments
 volatile bool done = false; // Done if we catch a signal
@@ -105,7 +106,13 @@ int main(int argc, char *argv[])
   prepare_display();
 
   std::vector<file_info> info_files;
-  std::unique_ptr<file_info_updater> info_updater(new lsof_file_info(pid));
+  std::unique_ptr<file_info_updater> info_updater;
+#ifdef HAVE_PROC
+  if(!args.lsof_flag)
+    info_updater.reset(new proc_file_info(pid));
+  else
+#endif
+    info_updater.reset(new lsof_file_info(pid));
 
   timespec time_tick;
   if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
