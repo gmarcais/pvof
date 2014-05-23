@@ -1,12 +1,14 @@
 #include <unistd.h>
 #include <signal.h>
-#include <stdlib.h>
+#include <cstdlib>
+#include <cerrno>
 #include <src/pipe_open.hpp>
 #include <src/lsof.hpp>
 #include <src/print_info.hpp>
 #include <src/timespec.hpp>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include <iostream>
 #include <algorithm>
@@ -36,13 +38,34 @@ void prepare_termination() {
 
 
 int start_sub_command(std::vector<const char*> args) {
+  int pipefd[2];
+  if(pipe(pipefd) == -1) { // Don't report error but disable error reporting!
+    pipefd[0] = pipefd[1] = -1;
+  } else {
+    fcntl(pipefd[1], F_SETFD, FD_CLOEXEC);
+  }
+
   int pid = fork();
-  if(pid == 0) {
+  if(pid == 0) { // child
+    close(pipefd[0]);
     const char** cmd = new const char*[args.size() + 1];
     std::copy(args.begin(), args.end(), cmd);
     cmd[args.size()] = 0;
     execvp(cmd[0], (char* const*)cmd);
+    // Got here -> execvp failed!
+    if(pipefd[1] != -1) {
+      write(pipefd[1], &errno, sizeof(errno));
+      close(pipefd[1]);
+    }
     _exit(1);
+  } else { // parent
+    close(pipefd[1]);
+    if(pipefd[0] != -1) {
+      int res = read(pipefd[0], &errno, sizeof(errno));
+      close(pipefd[0]);
+      if(res != 0)
+        return -1;
+    }
   }
 
   return pid;
@@ -92,11 +115,12 @@ int main(int argc, char *argv[])
   }
 
   int pid = args.pid_arg;
-  if(!args.command_arg.empty())
+  if(!args.command_arg.empty()) {
     pid = start_sub_command(args.command_arg);
-  if(pid < 0) {
-    std::cerr << "Invalid pid or command failed to run" << std::endl;
-    return 1;
+    if(pid == -1) {
+      std::cerr << "Command failed to run: " << strerror(errno) << std::endl;
+      return 1;
+    }
   }
 
   if(!isatty(2))
