@@ -43,7 +43,7 @@ int start_sub_command(std::vector<const char*> args) {
     execvp(cmd[0], (char* const*)cmd);
     _exit(1);
   }
-  
+
   return pid;
 }
 
@@ -66,11 +66,11 @@ void wait_sub_command(pid_t pid) {
     memset(&act, '\0', sizeof(act));
     act.sa_handler = SIG_DFL;
     sigaction(WTERMSIG(status), &act, 0); // Ignore failure here?
-    
+
     // Kill myself with this signal
     kill(getpid(), WTERMSIG(status));
   }
-  
+
   // Should not be reached. The process should have exited or killed
   // itself. Exit with an error if it failed.
   exit(EXIT_FAILURE);
@@ -103,10 +103,9 @@ int main(int argc, char *argv[])
 
   prepare_termination();
   prepare_display();
-  
-  char pid_str[100];
-  snprintf(pid_str, sizeof(pid_str), "%d", pid);
+
   std::vector<file_info> info_files;
+  std::unique_ptr<file_info_updater> info_updater(new lsof_file_info(pid));
 
   timespec time_tick;
   if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
@@ -116,7 +115,7 @@ int main(int argc, char *argv[])
 
   bool need_newline = false;
   while(!done) {
-    bool success = update_file_info(pid_str, info_files, time_tick);
+    bool success = info_updater->update_file_info(info_files, time_tick);
     if(!success)
       break;
     print_file_list(info_files);
@@ -130,18 +129,18 @@ int main(int argc, char *argv[])
     }
     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &time_tick, 0);
   }
-  
+
   std::cerr << "\033[0m";
   if(need_newline)
     std::cerr << std::endl;
   else
     std::cerr << std::flush;
 
-  
+
   // If we started the subprocess, get return value or kill
   // signal. Make pvof "transparent".
   if(!args.command_arg.empty())
     wait_sub_command(pid);
-  
+
   return 0;
 }

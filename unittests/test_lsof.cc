@@ -2,6 +2,7 @@
 #include <src/lsof.hpp>
 #include <src/timespec.hpp>
 
+namespace {
 TEST(LSOF, find_file_in_list) {
   file_list list;
   file_info f;
@@ -29,6 +30,24 @@ TEST(LSOF, find_file_in_list) {
   ASSERT_EQ(list.end(), s3);
 }
 
+struct lsof_file_info_mock : public lsof_file_info {
+  lsof_file_info_mock() : lsof_file_info(0) { }
+
+  bool parse_line(std::string& line, file_info& f, bool& failed) {
+    return lsof_file_info::parse_line(line, f, failed);
+  }
+  bool update_file_info(std::istream& is, file_list& list, const timespec& stamp, bool& need_updated_name) {
+    return lsof_file_info::update_file_info(is, list, stamp, need_updated_name);
+  }
+  bool update_file_names(file_list& list) {
+    return lsof_file_info::update_file_names(list);
+  }
+  bool update_file_names(std::istream& is, file_list& list) {
+    return lsof_file_info::update_file_names(is, list);
+  }
+
+};
+
 TEST(LSOF, parse_line) {
   const char* lines[] = {
     "p9784\0\n",
@@ -43,11 +62,12 @@ TEST(LSOF, parse_line) {
     "f10\0ar\0tREG\0s40382\0o0x2345a\0i5505713\0n/home/gus/Documents/test\0\n",
     0
   };
+  lsof_file_info_mock updater;
   for(const char** ptr = lines; *ptr; ++ptr) {
     std::string line(*ptr, (const char*)memchr(*ptr, '\n', 1024) - *ptr);
     file_info   f;
     bool        failed;
-    bool        res = parse_line(line, f, failed);
+    bool        res = updater.parse_line(line, f, failed);
     EXPECT_FALSE(failed);
     EXPECT_EQ(ptr - lines == 9, res);
     if(res) {
@@ -61,10 +81,11 @@ TEST(LSOF, parse_line) {
 }
 
 TEST(LSOF, failed_parse) {
-  std::string line("fNOFD\0\n");
-  file_info   f;
-  bool        failed;
-  bool        res = parse_line(line, f, failed);
+  std::string         line("fNOFD\0\n");
+  file_info           f;
+  bool                failed;
+  lsof_file_info_mock updater;
+  bool                res = updater.parse_line(line, f, failed);
   EXPECT_FALSE(res);
   EXPECT_TRUE(failed);
 }
@@ -79,13 +100,14 @@ TEST(LSOF, update_file_info) {
     "f10\0ar\0o0t58\0i452\0\n",
     0
   };
+  lsof_file_info_mock updater;
   for(const char** ptr = lines; *ptr; ++ptr)
     lsof_stream << std::string(*ptr, (const char*)memchr(*ptr, '\n', 1024) - *ptr + 1);
 
   timespec stamp = { 5, 2345 };
   file_list list;
   bool need_updated_name;
-  bool res = update_file_info(lsof_stream, list, stamp, need_updated_name);
+  bool res = updater.update_file_info(lsof_stream, list, stamp, need_updated_name);
   EXPECT_TRUE(res);
   EXPECT_TRUE(need_updated_name);
   ASSERT_EQ((size_t)2, list.size());
@@ -104,7 +126,7 @@ TEST(LSOF, update_file_info) {
   timespec new_stamp = stamp + 5;
   for(const char** ptr = lines2; *ptr; ++ptr)
     lsof_stream2 << std::string(*ptr, (const char*)memchr(*ptr, '\n', 1024) - *ptr + 1);
-  res = update_file_info(lsof_stream2, list, new_stamp, need_updated_name);
+  res = updater.update_file_info(lsof_stream2, list, new_stamp, need_updated_name);
   EXPECT_TRUE(res);
   EXPECT_TRUE(need_updated_name);
   ASSERT_EQ((size_t)3, list.size());
@@ -124,7 +146,7 @@ TEST(LSOF, update_file_info) {
   };
   for(const char** ptr = lines3; *ptr; ++ptr)
     lsof_stream3 << std::string(*ptr, (const char*)memchr(*ptr, '\n', 1024) - *ptr + 1);
-  res = update_file_names(lsof_stream3, list);
+  res = updater.update_file_names(lsof_stream3, list);
   EXPECT_TRUE(res);
   ASSERT_EQ((size_t)3, list.size());
   EXPECT_STREQ("/path/to/nname10", list[1].name.c_str());
@@ -133,3 +155,4 @@ TEST(LSOF, update_file_info) {
   EXPECT_EQ((off_t)123456, list[0].size);
   EXPECT_TRUE(list[2].name.empty());
 }
+} // namespace

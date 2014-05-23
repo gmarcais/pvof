@@ -57,7 +57,7 @@ static const char small_prefix[] = { ' ', 'm', 'u', 'n', 'p', 'f', 'a', 'z', 'y'
 std::string numerical_field_to_str(double val) {
   size_t ipref  = 0;
   char   prefix = ' ';
-  
+
   if(fabs(val) >= 1.0) {
     while(fabs(val) >= 1000.0 && ipref < sizeof(large_prefix)) {
       val /= 1000.0;
@@ -94,19 +94,19 @@ std::string seconds_to_str(double seconds) {
   }
   for(size_t i = 1; i < nb_time_suffixes; ++i) {
     if(seconds < time_suffixes[i].seconds) {
-      snprintf(res, sizeof(res), "% 5.3g%c", seconds / time_suffixes[i-1].seconds, 
+      snprintf(res, sizeof(res), "% 5.3g%c", seconds / time_suffixes[i-1].seconds,
               time_suffixes[i-1].suffix);
       return std::string(res);
     }
   }
   // More than a 100 years!
-  
+
   return std::string(" > 10y");
 }
 
 void print_file_list(file_list& list) {
-  static const int header_width = 
-    6 /* offset */ + 1 /* slash */ + 6 /* size */ + 
+  static const int header_width =
+    6 /* offset */ + 1 /* slash */ + 6 /* size */ +
     1 /* column */ + 8 /* speed */ + 1 /* column */ +
     6 /* eta */    + 2 /* spaces */;
   static bool printed_no_file = false;
@@ -149,7 +149,7 @@ void print_file_list(file_list& list) {
     if(it->writable || it->speed == 0.0)
       std::cerr << "   -  ";
     else {
-      double eta = it->speed > 0 
+      double eta = it->speed > 0
         ? (it->size - it->offset) / it->speed
         : it->offset / (-it->speed);
       std::cerr << seconds_to_str(eta);

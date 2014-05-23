@@ -2,7 +2,7 @@ AM_CXXFLAGS = -Wall -Werror -g -O2 -std=c++0x -I$(top_srcdir)
 AM_LDFLAGS = -lrt
 
 noinst_HEADERS = $(BUILT_SOURCES)
-BUILT_SOURCES = yaggo.cpp yaggo.hpp
+BUILT_SOURCES =
 CLEANFILES = $(BUILT_SOURCES)
 
 # Yaggo automatic rules with silencing
@@ -11,8 +11,6 @@ V_YAGGO_ = $(V_YAGGO_$(AM_DEFAULT_VERBOSITY))
 V_YAGGO_0 = @echo "  YAGGO " $@;
 .yaggo.hpp:
 	$(V_YAGGO)$(YAGGO) -o $@ $<
-yaggo.cpp yaggo.hpp:
-	$(V_YAGGO)$(YAGGO) --lib
 
 
 ##############################

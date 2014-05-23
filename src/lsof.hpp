@@ -3,51 +3,35 @@
 
 #include <sys/types.h>
 #include <unistd.h>
-#include <string.h>
-#include <time.h>
+#include <cstring>
+#include <ctime>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <src/timespec.hpp>
+#include <src/file_info.hpp>
 
-// Information kept about one file
-struct file_info {
-  int             fd;
-  ino_t           inode;
-  std::string     name;
-  off_t           offset;
-  off_t           size;
-  bool            writable;
-  double          speed;
-  bool            updated;
-  struct timespec stamp;
+class lsof_file_info : public file_info_updater {
+  std::string pid_str_;
+public:
+  lsof_file_info(pid_t pid) : pid_str_(std::to_string(pid)) { }
+
+  // Exec lsof -F on the given pid and update the corresponding list of
+  // file information (mainly the offset).
+  virtual bool update_file_info(file_list& list, const timespec& stamp);
+
+protected:
+  // Parse a line of the output of lsof -F and fill up f
+  bool parse_line(std::string& line, file_info& f, bool& failed);
+
+  // Update list of file information from input stream (most likely a
+  // pipe from lsof -F).
+  bool update_file_info(std::istream& is, file_list& list, const timespec& stamp, bool& need_updated_name);
+
+  // Exec lsof -F to get the file size and name information.
+  bool update_file_names(file_list& list);
+  // Update list from input stream
+  bool update_file_names(std::istream& is, file_list& list);
 };
-// A file is uniquely indexed by the pair (fd, inode)
-struct find_file {
-  int   fd_;
-  ino_t inode_;
-  find_file(int fd, ino_t inode) : fd_(fd), inode_(inode) { }
-  bool operator()(file_info& rhs) {
-    return fd_ == rhs.fd && inode_ == rhs.inode;
-  }
-};
-typedef std::vector<file_info> file_list;
-// Find a file in the list matching (fd, inode)
-file_list::iterator find_file_in_list(file_list& list, int fd, ino_t inode);
-
-// Parse a line of the output of lsof -F and fill up f
-bool parse_line(std::string& line, file_info& f, bool& failed);
-
-// Exec lsof -F on the given pid and update the corresponding list of
-// file information (mainly the offset).
-bool update_file_info(const char* pid_str, file_list& list, timespec& stamp);
-// Update list of file information from input stream (most likely a
-// pipe from lsof -F).
-bool update_file_info(std::istream& is, file_list& list, timespec& stamp, bool& need_updated_name);
-
-// Exec lsof -F to get the file size and name information.
-bool update_file_names(const char* pid_str, file_list& list);
-// Update list from input stream
-bool update_file_names(std::istream& is, file_list& list);
 
 #endif

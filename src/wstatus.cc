@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
   if(WIFEXITED(status)) {
     std::cout << "exit(" << WEXITSTATUS(status) << ")\n";
   } else if(WIFSIGNALED(status)) {
-    std::cout << "kill(" << WTERMSIG(status) << "|" 
+    std::cout << "kill(" << WTERMSIG(status) << "|"
               << strsignal(WTERMSIG(status)) << ")";
 #ifdef WCOREDUMP
     if(WCOREDUMP(status))

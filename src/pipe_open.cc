@@ -47,7 +47,7 @@ fd_pid open_sub_process(const char* const cmd[], bool check_exec = true,
     if(pipe(exec_worked) == -1) goto failed;
     if(fcntl(exec_worked[1], F_SETFD, FD_CLOEXEC) == -1) goto failed;
   }
-    
+
   switch((pid = fork())) {
   case -1: goto failed;
   case 0: // Child
@@ -64,7 +64,7 @@ fd_pid open_sub_process(const char* const cmd[], bool check_exec = true,
         if(errno != EINTR)
           break;
     _exit(1);
-      
+
   default: // Parent
     if(close(sub_stdout[1]) == -1) goto failed;
     if(check_exec) {
@@ -122,7 +122,7 @@ pipe_open::pipe_open(const char* const cmd[], bool check_exec, bool merge_stderr
     stream::setstate(std::ios::badbit);
 }
 
-pipe_open::~pipe_open() { 
+pipe_open::~pipe_open() {
   status();
   close(fd_pid::first);
 }

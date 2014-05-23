@@ -19,7 +19,7 @@ public:
       does not have the execution right) and a failure of the command
       itself.
    */
-  pipe_open(const char* const cmd[], bool check_exec = true, 
+  pipe_open(const char* const cmd[], bool check_exec = true,
             bool merge_stderr = false);
   /** Wait on the subprocess upon destruction. */
   virtual ~pipe_open();
