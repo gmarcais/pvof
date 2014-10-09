@@ -29,6 +29,9 @@ std::string full_path(const std::string& path) {
 }
 
 bool proc_file_info::update_file_info(file_list& list, const timespec& stamp) {
+  for(auto& it : list)
+    it.updated = false;
+
   struct dirfd fdinfo(fdinfo_.c_str());
   if(!fdinfo) return false;
 
