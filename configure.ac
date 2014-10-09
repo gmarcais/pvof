@@ -1,5 +1,5 @@
 AC_PREREQ([2.63])
-AC_INIT([pvof], [0.0.4], [gmarcais@umd.edu])
+AC_INIT([pvof], [0.0.5], [gmarcais@umd.edu])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_SRCDIR([src/pvof.cc]) 
 AC_CONFIG_HEADERS([config.h])
@@ -31,7 +31,6 @@ AS_IF([test "x$enable_proc" = "xyes"], [AC_DEFINE([HAVE_PROC], [1], [Use fd info
 # lsof to use
 AC_ARG_VAR([LSOF], [Path to lsof])
 AS_IF([test "x$LSOF" = "x"], [AC_PATH_PROG([LSOF], [lsof])])
-# AS_IF([test "x$LSOF" = "x"], [AC_MSG_ERROR([No lsof software found])])
 AC_DEFINE_UNQUOTED([LSOF], "$LSOF", [Path to lsof software])
 
 # Checks for typedefs, structures, and compiler characteristics.
