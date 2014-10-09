@@ -11,11 +11,14 @@ struct file_info {
   ino_t           inode;
   std::string     name;
   off_t           offset;
+  off_t           ooffset;
   off_t           size;
   bool            writable;
   double          speed;
+  double          average;
   bool            updated;
   struct timespec stamp;
+  struct timespec start;
 };
 // A file is uniquely indexed by the pair (fd, inode)
 struct find_file {

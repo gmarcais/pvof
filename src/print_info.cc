@@ -104,11 +104,19 @@ std::string seconds_to_str(double seconds) {
   return std::string(" > 10y");
 }
 
+std::string format_eta(bool writable, off_t size, off_t offset, double speed) {
+  if(speed == 0.0 || writable)
+    return "   -  ";
+  if(speed > 0)
+    return seconds_to_str((size - offset) / speed);
+  return seconds_to_str(offset / -speed);
+}
+
 void print_file_list(file_list& list) {
   static const int header_width =
-    6 /* offset */ + 1 /* slash */ + 6 /* size */ +
-    1 /* column */ + 8 /* speed */ + 1 /* column */ +
-    6 /* eta */    + 2 /* spaces */;
+    6 /* offset */ + 1 /* slash */ + 6  /* size */ +
+    1 /* column */ + 8 /* speed */ + 1  /* column */ +
+    6 /* eta */    + 1 /* column */ + 6 /* avg_eta */ + 2 /* spaces */;
   static bool printed_no_file = false;
   static int nb_lines = 0;
 
@@ -146,14 +154,10 @@ void print_file_list(file_list& list) {
     // Print speed
     std::cerr << ":" << numerical_field_to_str(it->speed) << "/s:";
     // Display ETA
-    if(it->writable || it->speed == 0.0)
-      std::cerr << "   -  ";
-    else {
-      double eta = it->speed > 0
-        ? (it->size - it->offset) / it->speed
-        : it->offset / (-it->speed);
-      std::cerr << seconds_to_str(eta);
-    }
+    std::cerr << format_eta(it->writable, it->size, it->offset, it->speed)
+              << ":"
+              << format_eta(it->writable, it->size, it->offset, it->average);
+
     std::cerr << "  ";
     if(!it->updated)
       std::cerr << "\033[7m";

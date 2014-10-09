@@ -48,15 +48,18 @@ bool proc_file_info::update_file_info(file_list& list, const timespec& stamp) {
     bool new_file = cfile == list.end();
     if(new_file) {// file does not exists. Add it
       file_info fi;
-      fi.fd       = fd;
-      fi.inode    = stat_buf.st_ino;
-      fi.name     = full_path(p);
-      fi.offset   = 0;
-      fi.size     = stat_buf.st_size;
-      fi.writable = false;
-      fi.speed    = 0;
-      fi.updated  = true;
-      fi.stamp    = stamp;
+      fi.fd          = fd;
+      fi.inode       = stat_buf.st_ino;
+      fi.name        = full_path(p);
+      fi.offset      = 0;
+      fi.ooffset     = 0;
+      fi.size        = stat_buf.st_size;
+      fi.writable    = false;
+      fi.speed       = 0;
+      fi.average     = 0;
+      fi.updated     = true;
+      fi.stamp       = stamp;
+      fi.start       = stamp;
       list.push_back(fi);
       cfile = find_file_in_list(list, fd, stat_buf.st_ino);
     }
@@ -68,7 +71,12 @@ bool proc_file_info::update_file_info(file_list& list, const timespec& stamp) {
     update_file_info(*cfile, stamp, fdinfo_fd, new_file);
     fdinfo_fd.close();
 
-    cfile->speed   = (stamp != cfile->stamp) ? (cfile->offset - save_offset) / timespec_double(stamp - cfile->stamp) : 0;
+    if(stamp != cfile->start) {
+      cfile->speed   = (cfile->offset - save_offset) / timespec_double(stamp - cfile->stamp);
+      cfile->average = (cfile->offset - cfile->ooffset) / timespec_double(stamp - cfile->start);
+    } else {
+      cfile->ooffset = cfile->offset;
+    }
     cfile->stamp   = stamp;
     cfile->updated = true;
   }
