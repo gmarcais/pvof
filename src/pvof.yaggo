@@ -12,6 +12,9 @@ option("n", "seconds") {
 option("lsof") {
   description "Force using lsof, instead of /proc/<pid>/fdinfo"
   off }
+option("fd") {
+  description "File descriptor of a terminal to display progress on"
+  int32 }
 arg("command") {
   description "Process to launch"
   c_string; multiple }

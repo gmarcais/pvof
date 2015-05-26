@@ -1,3 +1,4 @@
+
 #include <unistd.h>
 #include <signal.h>
 #include <cstdlib>
@@ -71,9 +72,10 @@ int start_sub_command(std::vector<const char*> args) {
   return pid;
 }
 
-void wait_sub_command(pid_t pid) {
+void wait_sub_command(pid_t pid, bool forever = false) {
   // Wait for sub command for at most 1 second
-  alarm(1);
+  if(!forever)
+    alarm(1);
   int status;
   pid_t res = waitpid(pid, &status, 0);
   switch(res) {
@@ -100,6 +102,63 @@ void wait_sub_command(pid_t pid) {
   exit(EXIT_FAILURE);
 }
 
+bool display_file_progress(int pid, int fd) {
+  std::ofstream os;
+  // Select which terminal to display on
+  if(fd >= 0) {
+    os.open(std::string("/proc/self/fd/") + std::to_string(fd));
+  } else {
+    for(int i = 2; i >= 0; --i) {
+      if(isatty(i)) {
+        os.open(std::string("/proc/self/fd/") + std::to_string(i));
+        break;
+      }
+    }
+  }
+  if(!os.is_open() || !os.good()) return false;
+
+
+  prepare_display();
+
+  std::vector<file_info> info_files;
+  std::unique_ptr<file_info_updater> info_updater;
+#ifdef HAVE_PROC
+  if(!args.lsof_flag)
+    info_updater.reset(new proc_file_info(pid));
+  else
+#endif
+    info_updater.reset(new lsof_file_info(pid));
+
+  timespec time_tick;
+  if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
+    os << "Can't get time" << std::endl;
+    return false;
+  }
+
+  bool need_newline = false;
+  while(!done) {
+    bool success = info_updater->update_file_info(info_files, time_tick);
+    if(!success)
+      break;
+    print_file_list(info_files, os);
+    need_newline = true;
+
+    timespec current_time;
+    clock_gettime(CLOCK_MONOTONIC, &current_time);
+    if(time_tick < current_time) {
+      time_tick  = current_time;
+      time_tick += args.seconds_arg;
+    }
+    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &time_tick, 0);
+  }
+
+  os << "\033[0m";
+  if(need_newline)
+    os << std::endl;
+  else
+    os << std::flush;
+  return true;
+}
 
 int main(int argc, char *argv[])
 {
@@ -123,55 +182,18 @@ int main(int argc, char *argv[])
     }
   }
 
-  if(!isatty(2))
-    return 0;
-
   prepare_termination();
-  prepare_display();
-
-  std::vector<file_info> info_files;
-  std::unique_ptr<file_info_updater> info_updater;
-#ifdef HAVE_PROC
-  if(!args.lsof_flag)
-    info_updater.reset(new proc_file_info(pid));
-  else
-#endif
-    info_updater.reset(new lsof_file_info(pid));
-
-  timespec time_tick;
-  if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
-    std::cerr << "Can't get time" << std::endl;
-    return 1;
+  bool wait_forever = false;
+  if(!display_file_progress(pid, args.fd_given ? args.fd_arg : -1)) {
+    std::cerr << "pvof: No terminal to display on" << std::endl;
+    wait_forever = true;
   }
-
-  bool need_newline = false;
-  while(!done) {
-    bool success = info_updater->update_file_info(info_files, time_tick);
-    if(!success)
-      break;
-    print_file_list(info_files);
-    need_newline = true;
-
-    timespec current_time;
-    clock_gettime(CLOCK_MONOTONIC, &current_time);
-    if(time_tick < current_time) {
-      time_tick  = current_time;
-      time_tick += args.seconds_arg;
-    }
-    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &time_tick, 0);
-  }
-
-  std::cerr << "\033[0m";
-  if(need_newline)
-    std::cerr << std::endl;
-  else
-    std::cerr << std::flush;
 
 
   // If we started the subprocess, get return value or kill
   // signal. Make pvof "transparent".
   if(!args.command_arg.empty())
-    wait_sub_command(pid);
+    wait_sub_command(pid, wait_forever);
 
   return 0;
 }

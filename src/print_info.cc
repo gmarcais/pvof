@@ -112,7 +112,7 @@ std::string format_eta(bool writable, off_t size, off_t offset, double speed) {
   return seconds_to_str(offset / -speed);
 }
 
-void print_file_list(file_list& list) {
+void print_file_list(file_list& list, std::ostream& os) {
   static const int header_width =
     6 /* offset */ + 1 /* slash */ + 6  /* size */ +
     1 /* column */ + 8 /* speed */ + 1  /* column */ +
@@ -121,7 +121,7 @@ void print_file_list(file_list& list) {
   static int nb_lines = 0;
 
   if(nb_lines == 0 && list.empty()) {
-    std::cerr << "\r --- No regular file open ---";
+    os << "\r --- No regular file open ---";
     printed_no_file = true;
     return;
   }
@@ -132,38 +132,38 @@ void print_file_list(file_list& list) {
       new_lines -= 2;
     printed_no_file = false;
     if(new_lines > 0)
-      std::cerr << "\033[" << new_lines << "S";
+      os << "\033[" << new_lines << "S";
   }
 
   nb_lines = list.size();
   if(nb_lines > 1)
-    std::cerr << "\033[" << (nb_lines - 1) << "A";
+    os << "\033[" << (nb_lines - 1) << "A";
 
   int window_width = get_window_width();
   for(auto it = list.begin(); it != list.end(); ++it) {
     if(it != list.begin())
-      std::cerr << "\033[1B";
+      os << "\033[1B";
 
     // Print offset
-    std::cerr << "\r" << numerical_field_to_str(it->offset) << "/";
+    os << "\r" << numerical_field_to_str(it->offset) << "/";
     // Print file size
     if(it->writable) // Don't display size on writable files
-      std::cerr << "   -  ";
+      os << "   -  ";
     else
-      std::cerr << numerical_field_to_str(it->size);
+      os << numerical_field_to_str(it->size);
     // Print speed
-    std::cerr << ":" << numerical_field_to_str(it->speed) << "/s:";
+    os << ":" << numerical_field_to_str(it->speed) << "/s:";
     // Display ETA
-    std::cerr << format_eta(it->writable, it->size, it->offset, it->speed)
+    os << format_eta(it->writable, it->size, it->offset, it->speed)
               << ":"
               << format_eta(it->writable, it->size, it->offset, it->average);
 
-    std::cerr << "  ";
+    os << "  ";
     if(!it->updated)
-      std::cerr << "\033[7m";
-    std::cerr << shorten_string(it->name, window_width - header_width);
+      os << "\033[7m";
+    os << shorten_string(it->name, window_width - header_width);
     if(!it->updated)
-      std::cerr << "\033[0m";
+      os << "\033[0m";
   }
-  std::cerr << "\033[0m" << std::flush;
+  os << "\033[0m" << std::flush;
 }
