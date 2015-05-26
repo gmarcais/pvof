@@ -164,22 +164,16 @@ int main(int argc, char *argv[])
 {
   args.parse(argc, argv);
 
-  if(args.pid_given && !args.command_arg.empty()) {
-    std::cerr << "Either, but not both, a process is passed with -p or a command is given on the command line" << std::endl;
-    return 1;
-  }
-  if(!args.pid_given && args.command_arg.empty()) {
-    std::cerr << "Need process id or a command to run" << std::endl;
-    return 1;
-  }
+  if(args.pid_given && !args.command_arg.empty())
+    pvof::error() << "Either, but not both, a process is passed with -p or a command is given on the command line";
+  if(!args.pid_given && args.command_arg.empty())
+    pvof::error() << "Need a process id or a command to run";
 
   int pid = args.pid_arg;
   if(!args.command_arg.empty()) {
     pid = start_sub_command(args.command_arg);
-    if(pid == -1) {
-      std::cerr << "Command failed to run: " << strerror(errno) << std::endl;
-      return 1;
-    }
+    if(pid == -1)
+      pvof::error() << "Command failed to run: " << strerror(errno);
   }
 
   prepare_termination();
