@@ -19,10 +19,12 @@ V_YAGGO_0 = @echo "  YAGGO " $@;
 bin_PROGRAMS = pvof
 
 pvof_SOURCES = src/pvof.cc src/pipe_open.cc src/lsof.cc		\
-               src/print_info.cc src/timespec.cc src/proc.cc	\
-               src/print_info.hpp src/lsof.hpp src/pvof.hpp	\
-               src/timespec.hpp src/pipe_open.hpp
+               src/print_info.cc src/timespec.cc src/proc.cc
 BUILT_SOURCES += src/pvof.hpp
+noinst_HEADERS = src/file_info.hpp src/proc.hpp src/print_info.hpp	\
+                 src/lsof.hpp src/pvof.hpp src/timespec.hpp		\
+                 src/pipe_open.hpp
+
 
 ##############################
 # Unit tests

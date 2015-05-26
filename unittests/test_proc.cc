@@ -105,7 +105,7 @@ TEST(PROC, update_file_info_external) {
   EXPECT_EQ(stat_buf.st_ino, info_files[0].inode);
   p = std::string(pwd) + "/" + in_file;
   EXPECT_EQ(p, info_files[0].name);
-  EXPECT_LT(line.size(), info_files[0].offset);
+  EXPECT_LT(line.size(), (size_t)info_files[0].offset);
   EXPECT_FALSE(info_files[0].writable);
   EXPECT_TRUE(info_files[0].updated);
 
@@ -114,7 +114,7 @@ TEST(PROC, update_file_info_external) {
   EXPECT_EQ(stat_buf.st_ino, info_files[1].inode);
   p = std::string(pwd) + "/" + out_file;
   EXPECT_EQ(p, info_files[1].name);
-  EXPECT_EQ(2 * line.size(), info_files[1].offset);
+  EXPECT_EQ(2 * line.size(), (size_t)info_files[1].offset);
   EXPECT_TRUE(info_files[1].writable);
   EXPECT_TRUE(info_files[1].updated);
 
