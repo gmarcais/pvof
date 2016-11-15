@@ -58,6 +58,7 @@ std::string numerical_field_to_str(double val) {
   size_t ipref  = 0;
   char   prefix = ' ';
 
+  char res[10];
   if(fabs(val) >= 1.0) {
     while(fabs(val) >= 1000.0 && ipref < sizeof(large_prefix)) {
       val /= 1000.0;
@@ -66,6 +67,7 @@ std::string numerical_field_to_str(double val) {
     if(ipref == sizeof(large_prefix))
       return std::string(val > 0 ? "+infty" : "-infty");
     prefix = large_prefix[ipref];
+    snprintf(res, sizeof(res), "% 5.3g%c", std::min(val, 999.0), prefix);
   } else {
     while(fabs(val) < 0.1 && ipref < sizeof(small_prefix)) {
       val *= 1000.0;
@@ -74,9 +76,11 @@ std::string numerical_field_to_str(double val) {
     if(ipref == sizeof(small_prefix))
       return std::string(val >= 0 ? "    0 " : "   -0 ");
     prefix = small_prefix[ipref];
+    if(fabs(val) < 1.0)
+      snprintf(res, sizeof(res), "% 5.2g%c", std::min(val, 999.0), prefix);
+    else
+      snprintf(res, sizeof(res), "% 5.3g%c", std::min(val, 999.0), prefix);
   }
-  char res[10];
-  snprintf(res, sizeof(res), "% 5.3g%c", std::min(val, 999.0), prefix);
   return std::string(res);
 }
 
