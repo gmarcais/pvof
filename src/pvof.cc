@@ -1,22 +1,24 @@
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <unistd.h>
 #include <signal.h>
 #include <cstdlib>
 #include <cerrno>
-#include <src/pipe_open.hpp>
-#include <src/lsof.hpp>
-#include <src/print_info.hpp>
-#include <src/timespec.hpp>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
 
 #include <iostream>
+#include <iomanip>
 #include <algorithm>
+#include <vector>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include <src/pipe_open.hpp>
+#include <src/lsof.hpp>
+#include <src/print_info.hpp>
+#include <src/timespec.hpp>
 #include <src/pvof.hpp>
 #include <src/proc.hpp>
 
@@ -105,22 +107,7 @@ void wait_sub_command(pid_t pid, bool forever = false) {
   exit(EXIT_FAILURE);
 }
 
-bool display_file_progress(int pid, int fd) {
-  std::ofstream os;
-  // Select which terminal to display on
-  if(fd >= 0) {
-    os.open(std::string("/proc/self/fd/") + std::to_string(fd));
-  } else {
-    for(int i = 2; i >= 0; --i) {
-      if(isatty(i)) {
-        os.open(std::string("/proc/self/fd/") + std::to_string(i));
-        break;
-      }
-    }
-  }
-  if(!os.is_open() || !os.good()) return false;
-
-
+bool display_file_progress(int pid, std::ostream& os) {
   prepare_display();
 
   std::vector<file_info> info_files;
@@ -163,6 +150,93 @@ bool display_file_progress(int pid, int fd) {
   return true;
 }
 
+bool display_io_progress(int pid, std::ostream& os) {
+  struct iostat {
+    const std::string label;
+    const size_t      start_value;
+    size_t            value;
+  };
+  std::vector<iostat> stats;
+
+  // First read of the /proc/<pid>/io file
+  const std::string path = std::string("/proc/") + std::to_string(pid) + "/io";
+  std::ifstream is(path);
+  if(!is.good()) {
+    os << "Can't open io file '" << path << '\'' << std::endl;
+    return false;
+  }
+  timespec time_tick;
+  if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
+    os << "Can't get time" << std::endl;
+    return false;
+  }
+  const timespec start_time = time_tick;
+
+  std::string label;
+  size_t value;
+  size_t width = 0;
+  while(is >> label >> value) {
+    width = std::max(width, label.size());
+    stats.push_back({label, value, value});
+  }
+  std::cout << "stats size: " << stats.size() << '\n';
+  is.close();
+
+  bool first = true;
+  while(!done) {
+    is.open(path);
+    if(!is.good())
+      return false;
+
+    timespec new_time;
+    clock_gettime(CLOCK_MONOTONIC, &new_time);
+    const double delta = timespec_double(new_time - time_tick);
+    const double start_delta = timespec_double(new_time - start_time);
+    if(!first)
+      os << "\033[" << stats.size() << 'F';
+    else
+      first = false;
+    for(auto& st : stats) {
+      is >> label >> value;
+      if(st.label != label) {
+        os << "Unexpected change in '" << path << " 'format" << std::endl;
+        return false;
+      }
+      double speed = delta > 0.0 ? (double)(value - st.value) / delta : 0.0;
+      double avg = start_delta > 0.0 ? (double)(value - st.start_value) / start_delta : 0.0;
+      st.value = value;
+      os << std::setw(width) << std::left << label << std::right
+         << ' ' << numerical_field_to_str(value)
+         << ' ' << numerical_field_to_str(speed)
+         << "/s:" << numerical_field_to_str(avg)
+         << "/s\n";
+    }
+    is.close();
+    os << std::flush;
+
+    time_tick = new_time;
+    new_time += args.seconds_arg;
+    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &new_time, NULL);
+  }
+
+  return true;
+}
+
+bool open_output(int fd, std::ofstream& os) {
+  // Select which terminal to display on
+  if(fd >= 0) {
+    os.open(std::string("/proc/self/fd/") + std::to_string(fd));
+  } else {
+    for(int i = 2; i >= 0; --i) {
+      if(isatty(i)) {
+        os.open(std::string("/proc/self/fd/") + std::to_string(i));
+        break;
+      }
+    }
+  }
+  return os.is_open() && os.good();
+}
+
 int main(int argc, char *argv[])
 {
   args.parse(argc, argv);
@@ -180,10 +254,20 @@ int main(int argc, char *argv[])
   }
 
   prepare_termination();
+
   bool wait_forever = false;
-  if(!display_file_progress(pid, args.fd_given ? args.fd_arg : -1)) {
+  std::ofstream output;
+  if(!open_output(args.fd_given ? args.fd_arg : -1, output)) {
     std::cerr << "pvof: No terminal to display on" << std::endl;
     wait_forever = true;
+  }
+
+  if(!wait_forever) {
+    if(args.io_flag) {
+      wait_forever = !display_io_progress(pid, output);
+    } else {
+      wait_forever = !display_file_progress(pid, output);
+    }
   }
 
 

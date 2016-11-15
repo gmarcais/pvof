@@ -9,6 +9,9 @@ option("p", "pid") {
 option("n", "seconds") {
   description "Number of seconds between updates"
   int32; default "1" }
+option("i", "io") {
+  description "Aggregate IO information from /proc/<pid>/io"
+  off }
 option("lsof") {
   description "Force using lsof, instead of /proc/<pid>/fdinfo"
   off }

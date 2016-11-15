@@ -20,15 +20,13 @@ bool cat_one_line(fd_list& fds) {
       *it = 0;
     }
   }
-  
+
   return ret;
 }
 
 int main(int argc, char* argv[]) {
   fd_list fds;
-  std::cerr << getpid() << std::endl;
-  sleep(2);
-  
+
   // for(int i = 1; i < argc; ++i, ++it)
   //   *it = new std::ifstream((argv[i]));
   int i = 1;
