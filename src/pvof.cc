@@ -54,11 +54,14 @@ int start_sub_command(std::vector<const char*> args) {
     cmd[args.size()] = 0;
     execvp(cmd[0], (char* const*)cmd);
     // Got here -> execvp failed!
+    int exit_code = 1;
     if(pipefd[1] != -1) {
-      write(pipefd[1], &errno, sizeof(errno));
+      auto s = write(pipefd[1], &errno, sizeof(errno));
+      if(s == -1)
+        exit_code = 2;
       close(pipefd[1]);
     }
-    _exit(1);
+    _exit(exit_code);
   } else { // parent
     close(pipefd[1]);
     if(pipefd[0] != -1) {

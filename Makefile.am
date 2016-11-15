@@ -21,9 +21,9 @@ bin_PROGRAMS = pvof
 pvof_SOURCES = src/pvof.cc src/pipe_open.cc src/lsof.cc		\
                src/print_info.cc src/timespec.cc src/proc.cc
 BUILT_SOURCES += src/pvof.hpp
-noinst_HEADERS = src/file_info.hpp src/proc.hpp src/print_info.hpp	\
-                 src/lsof.hpp src/pvof.hpp src/timespec.hpp		\
-                 src/pipe_open.hpp
+noinst_HEADERS += src/file_info.hpp src/proc.hpp src/print_info.hpp	\
+                  src/lsof.hpp src/pvof.hpp src/timespec.hpp		\
+                  src/pipe_open.hpp
 
 
 ##############################
@@ -32,7 +32,8 @@ noinst_HEADERS = src/file_info.hpp src/proc.hpp src/print_info.hpp	\
 TESTS = all_tests
 check_PROGRAMS = all_tests
 all_tests_CXXFLAGS = $(AM_CXXFLAGS) -I$(top_srcdir)/unittests
-all_tests_LDFLAGS = -lpthread
+#all_tests_LDFLAGS = -lpthread
+all_tests_LDADD = -lpthread
 all_tests_SOURCES = unittests/gtest/gtest-all.cc unittests/gtest/gtest_main.cc unittests/gtest/gtest.h
 
 all_tests_SOURCES += unittests/test_pipe_open.cc src/pipe_open.cc	\

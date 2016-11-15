@@ -1,4 +1,5 @@
 #include <sys/wait.h>
+#include <unistd.h>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -14,6 +15,13 @@ struct proc_file_info_mock : public proc_file_info {
   bool update_file_info(file_info& info, const timespec& stamp, std::istream& in, const bool is_new) {
     return proc_file_info::update_file_info(info, stamp, in, is_new);
   }
+};
+
+struct unlink_file {
+  std::string path;
+  unlink_file(const char* p) : path(p) { }
+  unlink_file(const std::string p) : path(p) { }
+  ~unlink_file() { unlink(path.c_str()); };
 };
 
 TEST(PROC, update_file_info_internal) {
@@ -59,11 +67,11 @@ TEST(PROC, update_file_info_internal) {
 }
 
 TEST(PROC, update_file_info_external) {
-  const std::string in_file  = "test_infile";
-  const std::string out_file = "test_outfile";
+  const unlink_file in_file("test_infile");
+  const unlink_file out_file("test_outfile");
   const std::string line     = "Hello the world";
   {
-    std::ofstream infile(in_file.c_str());
+    std::ofstream infile(in_file.path.c_str());
     infile << line << "\n" << line;
   }
 
@@ -78,18 +86,24 @@ TEST(PROC, update_file_info_external) {
     close(pipefd1[1]);
     close(pipefd2[0]);
     close(0); close(1); close(2); // no standard descriptors
-    std::ifstream in(in_file.c_str());
+    std::ifstream in(in_file.path.c_str());
     in.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::ofstream out("test_outfile");
     out << line << line << std::flush;
     close(pipefd2[1]); // Signal parent that we are ready
-    read(pipefd1[0], &buf, 1); // Wait for parent to be done
-    exit(0);
+    auto s = read(pipefd1[0], &buf, 1); // Wait for parent to be done
+    std::cerr << std::endl << "child " << s << std::endl;
+    if(s == -1) {
+      exit(1);
+    } else {
+      exit(0);
+    }
   }
 
   close(pipefd1[0]);
   close(pipefd2[1]);
-  read(pipefd2[0], &buf, 1); // Wait for child to close its end -> ready to get fd information
+  auto s = read(pipefd2[0], &buf, 1); // Wait for child to close its end -> ready to get fd information
+  ASSERT_EQ(0, s);
 
   std::vector<file_info> info_files;
   timespec stamp = { 4, 5432 };
@@ -100,19 +114,19 @@ TEST(PROC, update_file_info_external) {
   struct stat stat_buf;
   std::string p;
   char* pwd(get_current_dir_name());
-  ASSERT_EQ(0, stat(in_file.c_str(), &stat_buf));
+  ASSERT_EQ(0, stat(in_file.path.c_str(), &stat_buf));
   EXPECT_LT(-1, info_files[0].fd);
   EXPECT_EQ(stat_buf.st_ino, info_files[0].inode);
-  p = std::string(pwd) + "/" + in_file;
+  p = std::string(pwd) + "/" + in_file.path;
   EXPECT_EQ(p, info_files[0].name);
   EXPECT_LT(line.size(), (size_t)info_files[0].offset);
   EXPECT_FALSE(info_files[0].writable);
   EXPECT_TRUE(info_files[0].updated);
 
-  ASSERT_EQ(0, stat(out_file.c_str(), &stat_buf));
+  ASSERT_EQ(0, stat(out_file.path.c_str(), &stat_buf));
   EXPECT_LT(-1, info_files[1].fd);
   EXPECT_EQ(stat_buf.st_ino, info_files[1].inode);
-  p = std::string(pwd) + "/" + out_file;
+  p = std::string(pwd) + "/" + out_file.path;
   EXPECT_EQ(p, info_files[1].name);
   EXPECT_EQ(2 * line.size(), (size_t)info_files[1].offset);
   EXPECT_TRUE(info_files[1].writable);
@@ -122,5 +136,6 @@ TEST(PROC, update_file_info_external) {
   close(pipefd1[1]); // Signal child to exit
   int status;
   wait(&status);
+  //  EXPECT_TRUE(WIFEXITED(status) && WEXITSTATUS(status) == 0);
 }
 } // namespace
