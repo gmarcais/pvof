@@ -107,14 +107,14 @@ void wait_sub_command(pid_t pid, bool forever = false) {
   exit(EXIT_FAILURE);
 }
 
-bool display_file_progress(int pid, std::ostream& os) {
+bool display_file_progress(int pid, std::ostream& os, bool force) {
   prepare_display();
 
   std::vector<file_info> info_files;
   std::unique_ptr<file_info_updater> info_updater;
 #ifdef HAVE_PROC
   if(!args.lsof_flag)
-    info_updater.reset(new proc_file_info(pid));
+    info_updater.reset(new proc_file_info(pid, force));
   else
 #endif
     info_updater.reset(new lsof_file_info(pid));
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
     if(args.io_flag) {
       wait_forever = !display_io_progress(pid, output);
     } else {
-      wait_forever = !display_file_progress(pid, output);
+      wait_forever = !display_file_progress(pid, output, args.force_flag);
     }
   }
 

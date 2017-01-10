@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <memory>
@@ -39,9 +40,10 @@ bool proc_file_info::update_file_info(file_list& list, const timespec& stamp) {
   struct stat    stat_buf;
   std::string    p;
   while((ent = readdir(fdinfo))) {
+    if(!strcmp(".", ent->d_name) || !strcmp("..", ent->d_name)) continue;
     p = fd_ + '/' + ent->d_name;
     if(stat(p.c_str(), &stat_buf) == -1) continue; // failed to stat -> skip
-    if(!S_ISREG(stat_buf.st_mode)) continue; // not regular file -> skip
+    if(!force_ && !S_ISREG(stat_buf.st_mode)) continue; // not regular file -> skip
 
     int fd = std::atoi(ent->d_name);
     auto cfile = find_file_in_list(list, fd, stat_buf.st_ino);
