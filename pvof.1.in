@@ -1,0 +1,110 @@
+.TH pvof 1 "2017" "version @VERSION@" "USER COMMANDS"
+
+.SH NAME
+pvof \- display status of open files of a process
+
+.SH SYNOPSIS
+.B pvof [options] command [args...]
+.br
+.B pvof [options] -p pid
+
+.SH DESCRIPTION
+
+\fBpvof\fR displays for a given process the file offset of each file
+descriptor open to a regular file. In the first form, \fBpvof\fR
+behaves similarly to time(1): it starts the program \fBcommand\fR with
+the provided arguments and start to monitor the open files. In the
+second form, it monitors an existing running program.
+
+The output has 6 fields for each open file descriptor, and look like this:
+
+ 16.4k/ 70.5k: 8.19k/s: 6.61s: 19.8s  /home/gus/Development/UMD/pvof/Makefile.in
+  (1)    (2)    (3)      (4)    (5)      (6)
+
+(1) is the offset in the file, (2) is the size of the file, (3) is the
+instantaneous reading/writing speed, (4) is the estimated remaining
+time based on the instantaneous speed, (5) is the estimated remaining
+time based on the average speed since the start of \fBpvof\fR, and (6)
+is the file path.
+
+Only information about regular file is provided, as the offset is
+meaningless on pipes, sockets and special files. Use \fB--f\fR to
+force \fBpvof\fR to display information about all file descriptors.
+
+Alternatively, the \fB-i\fR switch displays the aggregate IO
+information, that is the total amount of data written on all the file
+descriptors. The output looks like this:
+
+  rchar:                  74.9k  4.96k/s: 4.86k/s
+  wchar:                  65.5k  4.09k/s: 4.37k/s
+  syscr:                    18      1 /s:  0.8 /s
+  syscw:                    16      1 /s: 1.07 /s
+  read_bytes:                0      0 /s:    0 /s
+  write_bytes:               0      0 /s:    0 /s
+  cancelled_write_bytes:     0      0 /s:    0 /s
+
+For each field, it displays the total amount, the instantaneous speed
+and the average speed since the start of \fBpvof\fR. The fields are
+described in the man page of proc(5) on the section for
+/proc/[pid]/io. In short, rchar/wchar are the number of read and
+written bytes, syscr/syscw are the number of system call for reading
+and writing, read_bytes/write_bytes are the number of bytes actually
+read from the disk (instead of cache).
+
+.SH OPTIONS
+
+.TP
+.B -n, --seconds=int32
+Number of seconds between updates and to compute the speed average. By
+default every second.
+
+.TP
+.B -i, --io
+Instead of displaying information about individual file descriptor, it
+displays aggregate IO information. This is useful when the file
+descriptors are non-regular files.
+
+.TP
+.B -f, --force
+Display information about all files, even on file descriptors that
+\fBpvof\fR determined to be "non-interesting", like descriptors to
+pipes and sockets.
+
+.TP
+.B --fd=int32
+By default, the progress information is written on \fBstderr\fR, file
+descriptor 2. This option uses a different file descriptor to write
+the information. The file descriptor should be connected to a terminal.
+
+.SH SIGNALS
+
+.TP
+.B SIGTERM, SIGINT
+If the first form is used (that is \fBpvof\fR started the command),
+\fBpvof\fR stops displaying progress information and simply waits for
+the command to terminate. The monitored program keeps on running
+unaffected.
+
+If the second form is used, \fBpvof\fR stops immediatly. The monitored
+program keeps on running unaffected.
+
+.TP
+.B SIGUSR1
+This toggles the display of the progress. 
+
+.SH RETURN VALUE
+If the second form is used, the return value is 0.
+
+If the first form is used, the return value is exactly identical as
+the return value of the monitored program. Even if the program was
+killed by a signal, it will appear that \fBpvof\fR was killed by the
+same signal. That is, \fBpvof\fR is transparent and can be used in
+pipelines.
+
+.SH AUTHOR
+Guillaume Marçais (gmarcais@cs.cmu.edu)
+
+.SH SEE ALSO
+pv(1), time(1), lseek(2), proc(5)
+
+.PP
