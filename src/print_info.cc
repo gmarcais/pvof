@@ -58,7 +58,7 @@ std::string numerical_field_to_str(double val) {
   size_t ipref  = 0;
   char   prefix = ' ';
 
-  char res[10];
+  char res[12];
   if(fabs(val) >= 1.0) {
     while(fabs(val) >= 1000.0 && ipref < sizeof(large_prefix)) {
       val /= 1000.0;
@@ -92,7 +92,7 @@ static const time_suffix time_suffixes[] =
   { { 1.0, 's' }, { 60.0, 'm' }, { 3600.0, 'h' }, { 86400.0, 'd' }, { 86400.0 * 365.25, 'y' }, { 86400.0 * 365.25 * 10.0, ' ' } };
 static const size_t nb_time_suffixes = sizeof(time_suffixes) / sizeof(time_suffix);
 std::string seconds_to_str(double seconds) {
-  char res[10];
+  char res[12];
   if(seconds < 1.0) {
     return std::string("  < 1s");
   }

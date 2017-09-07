@@ -24,10 +24,14 @@
 
 pvof args; // The arguments
 volatile bool done = false; // Done if we catch a signal
+volatile bool no_display = false; // Stop display of file status
 
 // Stop on TERM and QUIT signals
 void sig_termination_handler(int s) {
   done = true;
+}
+void sig_toggle_display(int s) {
+  no_display = !no_display;
 }
 void prepare_termination() {
   struct sigaction act;
@@ -37,6 +41,11 @@ void prepare_termination() {
   sigaction(SIGQUIT, &act, 0);
   sigaction(SIGINT, &act, 0);
   sigaction(SIGALRM, &act, 0);
+
+  // Toggle display on SIGUSR1
+  memset(&act, '\0', sizeof(act));
+  act.sa_handler = sig_toggle_display;
+  sigaction(SIGUSR1, &act, 0);
 }
 
 
@@ -130,8 +139,10 @@ bool display_file_progress(int pid, std::ostream& os, bool force) {
     bool success = info_updater->update_file_info(info_files, time_tick);
     if(!success)
       break;
-    print_file_list(info_files, os);
-    need_newline = true;
+    if(!no_display) {
+      print_file_list(info_files, os);
+      need_newline = true;
+    }
 
     timespec current_time;
     clock_gettime(CLOCK_MONOTONIC, &current_time);
