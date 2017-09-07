@@ -25,6 +25,9 @@ noinst_HEADERS += src/file_info.hpp src/proc.hpp src/print_info.hpp	\
                   src/lsof.hpp src/pvof.hpp src/timespec.hpp		\
                   src/pipe_open.hpp
 
+%.1: %.1.in
+	sed -e "s,[@]VERSION[@],$(VERSION)," $< > $@
+dist_man1_MANS = pvof.1
 
 ##############################
 # Unit tests

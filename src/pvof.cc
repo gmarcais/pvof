@@ -24,10 +24,14 @@
 
 pvof args; // The arguments
 volatile bool done = false; // Done if we catch a signal
+volatile bool no_display = false; // Stop display of file status
 
 // Stop on TERM and QUIT signals
 void sig_termination_handler(int s) {
   done = true;
+}
+void sig_toggle_display(int s) {
+  no_display = !no_display;
 }
 void prepare_termination() {
   struct sigaction act;
@@ -37,6 +41,11 @@ void prepare_termination() {
   sigaction(SIGQUIT, &act, 0);
   sigaction(SIGINT, &act, 0);
   sigaction(SIGALRM, &act, 0);
+
+  // Toggle display on SIGUSR1
+  memset(&act, '\0', sizeof(act));
+  act.sa_handler = sig_toggle_display;
+  sigaction(SIGUSR1, &act, 0);
 }
 
 
@@ -107,14 +116,14 @@ void wait_sub_command(pid_t pid, bool forever = false) {
   exit(EXIT_FAILURE);
 }
 
-bool display_file_progress(int pid, std::ostream& os) {
+bool display_file_progress(int pid, std::ostream& os, bool force) {
   prepare_display();
 
   std::vector<file_info> info_files;
   std::unique_ptr<file_info_updater> info_updater;
 #ifdef HAVE_PROC
   if(!args.lsof_flag)
-    info_updater.reset(new proc_file_info(pid));
+    info_updater.reset(new proc_file_info(pid, force));
   else
 #endif
     info_updater.reset(new lsof_file_info(pid));
@@ -130,8 +139,10 @@ bool display_file_progress(int pid, std::ostream& os) {
     bool success = info_updater->update_file_info(info_files, time_tick);
     if(!success)
       break;
-    print_file_list(info_files, os);
-    need_newline = true;
+    if(!no_display) {
+      print_file_list(info_files, os);
+      need_newline = true;
+    }
 
     timespec current_time;
     clock_gettime(CLOCK_MONOTONIC, &current_time);
@@ -266,7 +277,7 @@ int main(int argc, char *argv[])
     if(args.io_flag) {
       wait_forever = !display_io_progress(pid, output);
     } else {
-      wait_forever = !display_file_progress(pid, output);
+      wait_forever = !display_file_progress(pid, output, args.force_flag);
     }
   }
 

@@ -12,6 +12,9 @@ option("n", "seconds") {
 option("i", "io") {
   description "Aggregate IO information from /proc/<pid>/io"
   off }
+option("f", "force") {
+  description "Force all files, not only regular files"
+  off }
 option("lsof") {
   description "Force using lsof, instead of /proc/<pid>/fdinfo"
   off }

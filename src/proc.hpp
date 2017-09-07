@@ -9,11 +9,13 @@
 class proc_file_info : public file_info_updater {
   const std::string fdinfo_;
   const std::string fd_;
+  const bool        force_;
 
 public:
-  proc_file_info(pid_t pid) :
-    fdinfo_(std::string("/proc/") + std::to_string(pid) + "/fdinfo"),
-    fd_(std::string("/proc/") + std::to_string(pid) + "/fd")
+  explicit proc_file_info(pid_t pid, bool force = false)
+    : fdinfo_(std::string("/proc/") + std::to_string(pid) + "/fdinfo")
+    , fd_(std::string("/proc/") + std::to_string(pid) + "/fd")
+    , force_(force)
   { }
 
   virtual bool update_file_info(file_list& list, const timespec& stamp);
