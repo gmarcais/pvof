@@ -49,7 +49,7 @@ void prepare_termination() {
 }
 
 
-int start_sub_command(std::vector<const char*> args) {
+pid_t start_sub_command(std::vector<const char*> args) {
   int pipefd[2];
   if(pipe(pipefd) == -1) { // Don't report error but disable error reporting!
     pipefd[0] = pipefd[1] = -1;
@@ -57,7 +57,7 @@ int start_sub_command(std::vector<const char*> args) {
     fcntl(pipefd[1], F_SETFD, FD_CLOEXEC);
   }
 
-  int pid = fork();
+  pid_t pid = fork();
   if(pid == 0) { // child
     close(pipefd[0]);
     const char** cmd = new const char*[args.size() + 1];
@@ -116,8 +116,9 @@ void wait_sub_command(pid_t pid, bool forever = false) {
   exit(EXIT_FAILURE);
 }
 
-bool display_file_progress(int pid, std::ostream& os, bool force) {
+bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os, bool force) {
   prepare_display();
+  const pid_t pid = pids.front();
 
   std::vector<file_info> info_files;
   std::unique_ptr<file_info_updater> info_updater;
@@ -161,21 +162,35 @@ bool display_file_progress(int pid, std::ostream& os, bool force) {
   return true;
 }
 
-bool display_io_progress(int pid, std::ostream& os) {
+std::string create_identifier(bool numeric, pid_t pid) {
+  const std::string strpid = std::to_string(pid);
+  if(numeric) return strpid;
+  std::ifstream is(std::string("/proc/" + strpid + "/cmdline"));
+  if(!is.good()) return strpid;
+  std::string name;
+  std::getline(is, name, '\0');
+  if(name.empty()) return strpid;
+  const auto slash = name.find_last_of("/");
+  return (slash == std::string::npos) ? name : name.substr(slash + 1);
+}
+
+bool display_io_progress(const std::vector<pid_t>& pids, std::ostream& os, bool numeric = false) {
   struct iostat {
     const std::string label;
     const size_t      start_value;
     size_t            value;
   };
-  std::vector<iostat> stats;
+  struct process_stat {
+    const std::string path;  // Path to io file in proc
+    const std::string strid; // Identifier
+    std::vector<iostat> stats;
+    process_stat(std::string&& p, std::string&& s)
+      : path(std::move(p))
+      , strid(std::move(s))
+    { }
+  };
+  std::vector<process_stat> process_stats;
 
-  // First read of the /proc/<pid>/io file
-  const std::string path = std::string("/proc/") + std::to_string(pid) + "/io";
-  std::ifstream is(path);
-  if(!is.good()) {
-    os << "Can't open io file '" << path << '\'' << std::endl;
-    return false;
-  }
   timespec time_tick;
   if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
     os << "Can't get time" << std::endl;
@@ -184,45 +199,60 @@ bool display_io_progress(int pid, std::ostream& os) {
   const timespec start_time = time_tick;
 
   std::string label;
-  size_t value;
-  size_t width = 0;
-  while(is >> label >> value) {
-    width = std::max(width, label.size());
-    stats.push_back({label, value, value});
+  size_t      value;
+  size_t      width    = 0;
+  size_t      nb_lines = 0;     // Total number of lines to jump back
+
+  // First read of the /proc/<pid>/io file
+  for(size_t i = 0; i < pids.size(); ++i) {
+    const pid_t pid = pids[i];
+    process_stats.emplace_back(std::string("/proc/") + std::to_string(pid) + "/io", create_identifier(numeric, pid));
+    auto& pstat = process_stats.back();
+    std::ifstream is(pstat.path);
+    if(!is.good()) {
+      os << "Can't open io file '" << pstat.path << '\'' << std::endl;
+      return false;
+    }
+
+    while(is >> label >> value) {
+      width = std::max(width, label.size());
+      pstat.stats.push_back({label, value, value});
+      ++nb_lines;
+    }
   }
-  std::cout << "stats size: " << stats.size() << '\n';
-  is.close();
 
   bool first = true;
+  timespec new_time;
   while(!done) {
-    is.open(path);
-    if(!is.good())
-      return false;
-
-    timespec new_time;
-    clock_gettime(CLOCK_MONOTONIC, &new_time);
-    const double delta = timespec_double(new_time - time_tick);
-    const double start_delta = timespec_double(new_time - start_time);
     if(!first)
-      os << "\033[" << stats.size() << 'F';
+      os << "\033[" << nb_lines << 'F';
     else
       first = false;
-    for(auto& st : stats) {
-      is >> label >> value;
-      if(st.label != label) {
-        os << "Unexpected change in '" << path << " 'format" << std::endl;
+    for(auto& pstat : process_stats) {
+      std::ifstream is(pstat.path);
+      if(!is.good())
         return false;
+
+      clock_gettime(CLOCK_MONOTONIC, &new_time);
+      const double delta = timespec_double(new_time - time_tick);
+      const double start_delta = timespec_double(new_time - start_time);
+      for(auto& st : pstat.stats) {
+        is >> label >> value;
+        if(st.label != label) {
+          os << "Unexpected change in '" << pstat.path << " 'format" << std::endl;
+          return false;
+        }
+        double speed = delta > 0.0 ? (double)(value - st.value) / delta : 0.0;
+        double avg = start_delta > 0.0 ? (double)(value - st.start_value) / start_delta : 0.0;
+        st.value = value;
+        os << pstat.strid << ": "
+           << std::setw(width) << std::left << label << std::right
+           << ' ' << numerical_field_to_str(value)
+           << ' ' << numerical_field_to_str(speed)
+           << "/s:" << numerical_field_to_str(avg)
+           << "/s\n";
       }
-      double speed = delta > 0.0 ? (double)(value - st.value) / delta : 0.0;
-      double avg = start_delta > 0.0 ? (double)(value - st.start_value) / start_delta : 0.0;
-      st.value = value;
-      os << std::setw(width) << std::left << label << std::right
-         << ' ' << numerical_field_to_str(value)
-         << ' ' << numerical_field_to_str(speed)
-         << "/s:" << numerical_field_to_str(avg)
-         << "/s\n";
     }
-    is.close();
     os << std::flush;
 
     time_tick = new_time;
@@ -252,16 +282,16 @@ int main(int argc, char *argv[])
 {
   args.parse(argc, argv);
 
-  if(args.pid_given && !args.command_arg.empty())
-    pvof::error() << "Either, but not both, a process is passed with -p or a command is given on the command line";
-  if(!args.pid_given && args.command_arg.empty())
-    pvof::error() << "Need a process id or a command to run";
+  if(args.pid_arg.empty() && args.command_arg.empty())
+    pvof::error() << "A process ID (-p switch) or a command is necessary";
 
-  int pid = args.pid_arg;
+  std::vector<pid_t> pids(args.pid_arg.size(), -1);
+  std::copy(args.pid_arg.cbegin(), args.pid_arg.cend(), pids.begin());
   if(!args.command_arg.empty()) {
-    pid = start_sub_command(args.command_arg);
+    pid_t pid = start_sub_command(args.command_arg);
     if(pid == -1)
       pvof::error() << "Command failed to run: " << strerror(errno);
+    pids.push_back(pid);
   }
 
   prepare_termination();
@@ -275,9 +305,9 @@ int main(int argc, char *argv[])
 
   if(!wait_forever) {
     if(args.io_flag) {
-      wait_forever = !display_io_progress(pid, output);
+      wait_forever = !display_io_progress(pids, output);
     } else {
-      wait_forever = !display_file_progress(pid, output, args.force_flag);
+      wait_forever = !display_file_progress(pids, output, args.force_flag);
     }
   }
 
@@ -285,7 +315,7 @@ int main(int argc, char *argv[])
   // If we started the subprocess, get return value or kill
   // signal. Make pvof "transparent".
   if(!args.command_arg.empty())
-    wait_sub_command(pid, wait_forever);
+    wait_sub_command(pids.back(), wait_forever);
 
   return 0;
 }
