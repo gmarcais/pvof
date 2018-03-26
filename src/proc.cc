@@ -88,19 +88,23 @@ bool proc_file_info::update_file_info(file_list& list, const timespec& stamp) {
 bool proc_file_info::update_file_info(file_info& info, const timespec& stamp, std::istream& in, const bool is_new) {
   std::string label;
 
-  while(in.good()) {
-    in >> label;
-    if(in.eof()) break;
-    if(label == "pos:") {
-      in >> std::dec >> info.offset;
-    } else if(label == "flags:" && is_new) {
-      int flags;
-      in >> std::oct >> flags;
-      info.writable = (flags & O_WRONLY) || (flags & O_RDWR);
-    } else {
-      int ignore;
-      in >> ignore;
+  try {
+    while(in.good()) {
+      in >> label;
+      if(in.eof()) break;
+      if(label == "pos:") {
+        in >> std::dec >> info.offset;
+      } else if(label == "flags:" && is_new) {
+        int flags;
+        in >> std::oct >> flags;
+        info.writable = (flags & O_WRONLY) || (flags & O_RDWR);
+      } else {
+        int ignore;
+        in >> ignore;
+      }
     }
+  } catch(std::ios_base::failure e) {
+    // Do nothing
   }
   return true;
 }
