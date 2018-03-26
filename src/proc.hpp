@@ -12,8 +12,9 @@ class proc_file_info : public file_info_updater {
   const bool        force_;
 
 public:
-  explicit proc_file_info(pid_t pid, bool force = false)
-    : fdinfo_(std::string("/proc/") + std::to_string(pid) + "/fdinfo")
+  explicit proc_file_info(pid_t pid, bool force = false, bool numeric = false)
+    : file_info_updater(create_identifier(numeric, pid))
+    , fdinfo_(std::string("/proc/") + std::to_string(pid) + "/fdinfo")
     , fd_(std::string("/proc/") + std::to_string(pid) + "/fd")
     , force_(force)
   { }

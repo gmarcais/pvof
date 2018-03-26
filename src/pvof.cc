@@ -116,18 +116,22 @@ void wait_sub_command(pid_t pid, bool forever = false) {
   exit(EXIT_FAILURE);
 }
 
-bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os, bool force) {
+bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os, bool force, bool numeric = false) {
   prepare_display();
-  const pid_t pid = pids.front();
 
-  std::vector<file_info> info_files;
-  std::unique_ptr<file_info_updater> info_updater;
+  typedef std::unique_ptr<file_info_updater> updater_ptr;
+  std::vector<file_list>   info_files;
+  std::vector<updater_ptr> info_updaters;
+
+  for(const auto pid : pids) {
 #ifdef HAVE_PROC
-  if(!args.lsof_flag)
-    info_updater.reset(new proc_file_info(pid, force));
-  else
+    if(!args.lsof_flag)
+      info_updaters.emplace_back(new proc_file_info(pid, force, numeric));
+    else
 #endif
-    info_updater.reset(new lsof_file_info(pid));
+      info_updaters.emplace_back(new lsof_file_info(pid, numeric));
+    info_files.push_back(*info_updaters.back());
+  }
 
   timespec time_tick;
   if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
@@ -137,11 +141,16 @@ bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os, boo
 
   bool need_newline = false;
   while(!done) {
-    bool success = info_updater->update_file_info(info_files, time_tick);
+    bool success = false;
+    size_t total_lines = 0;
+    for(size_t i = 0; i < pids.size(); ++i) {
+      success = info_updaters[i]->update_file_info(info_files[i], time_tick) || success;
+      total_lines += info_files[i].size();
+    }
     if(!success)
       break;
     if(!no_display) {
-      print_file_list(info_files, os);
+      print_file_list(info_files, total_lines, os);
       need_newline = true;
     }
 
@@ -160,18 +169,6 @@ bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os, boo
   else
     os << std::flush;
   return true;
-}
-
-std::string create_identifier(bool numeric, pid_t pid) {
-  const std::string strpid = std::to_string(pid);
-  if(numeric) return strpid;
-  std::ifstream is(std::string("/proc/" + strpid + "/cmdline"));
-  if(!is.good()) return strpid;
-  std::string name;
-  std::getline(is, name, '\0');
-  if(name.empty()) return strpid;
-  const auto slash = name.find_last_of("/");
-  return (slash == std::string::npos) ? name : name.substr(slash + 1);
 }
 
 bool display_io_progress(const std::vector<pid_t>& pids, std::ostream& os, bool numeric = false) {
@@ -305,9 +302,9 @@ int main(int argc, char *argv[])
 
   if(!wait_forever) {
     if(args.io_flag) {
-      wait_forever = !display_io_progress(pids, output);
+      wait_forever = !display_io_progress(pids, output, args.numeric_flag);
     } else {
-      wait_forever = !display_file_progress(pids, output, args.force_flag);
+      wait_forever = !display_file_progress(pids, output, args.force_flag, args.numeric_flag);
     }
   }
 

@@ -5,7 +5,7 @@
 #include <src/lsof.hpp>
 
 void prepare_display();
-void print_file_list(file_list& list, std::ostream& os);
+void print_file_list(const std::vector<file_list>& lists, size_t total_lines, std::ostream& os);
 
 std::string numerical_field_to_str(double val);
 std::string seconds_to_str(double seconds);

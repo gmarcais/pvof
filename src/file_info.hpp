@@ -29,14 +29,39 @@ struct find_file {
     return fd_ == rhs.fd && inode_ == rhs.inode;
   }
 };
-typedef std::vector<file_info> file_list;
-// Find a file in the list matching (fd, inode)
-inline file_list::iterator find_file_in_list(file_list& list, int fd, ino_t inode) {
-  return std::find_if(list.begin(), list.end(), find_file(fd, inode));
-}
+
+class file_info_updater;
+struct file_list {
+  typedef std::vector<file_info>    list_type;
+  typedef list_type::iterator       iterator;
+  typedef list_type::const_iterator const_iterator;
+
+  file_info_updater& source;
+  list_type          list;
+
+  file_list(file_info_updater& s)
+    : source(s)
+  { }
+  iterator find(int fd, ino_t inode) { return std::find_if(list.begin(), list.end(), find_file(fd, inode)); }
+
+  void push_back(file_info&& f) { list.push_back(std::move(f)); }
+  void push_back(const file_info& f) { list.push_back(f); }
+  iterator back_iterator() { return list.end() - 1; }
+  iterator begin() { return list.begin(); }
+  iterator end() { return list.end(); }
+  const_iterator begin() const { return list.begin(); }
+  const_iterator end() const { return list.end(); }
+  size_t size() const { return list.size(); }
+};
+
+std::string create_identifier(bool numeric, pid_t pid);
 
 class file_info_updater {
+  const std::string strid_;
 public:
+  file_info_updater() : strid_("") { }
+  file_info_updater(const std::string&& s) : strid_(std::move(s)) { }
+  const std::string& strid() const { return strid_; }
   virtual bool update_file_info(file_list& list, const timespec& stamp) = 0;
 };
 

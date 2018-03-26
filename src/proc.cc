@@ -46,7 +46,7 @@ bool proc_file_info::update_file_info(file_list& list, const timespec& stamp) {
     if(!force_ && !S_ISREG(stat_buf.st_mode)) continue; // not regular file -> skip
 
     int fd = std::atoi(ent->d_name);
-    auto cfile = find_file_in_list(list, fd, stat_buf.st_ino);
+    auto cfile = list.find(fd, stat_buf.st_ino);
     bool new_file = cfile == list.end();
     if(new_file) {// file does not exists. Add it
       file_info fi;
@@ -63,7 +63,7 @@ bool proc_file_info::update_file_info(file_list& list, const timespec& stamp) {
       fi.stamp       = stamp;
       fi.start       = stamp;
       list.push_back(fi);
-      cfile = find_file_in_list(list, fd, stat_buf.st_ino);
+      cfile = list.back_iterator();
     }
 
     off_t save_offset = cfile->offset;

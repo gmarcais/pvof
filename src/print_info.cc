@@ -116,58 +116,69 @@ std::string format_eta(bool writable, off_t size, off_t offset, double speed) {
   return seconds_to_str(offset / -speed);
 }
 
-void print_file_list(file_list& list, std::ostream& os) {
+void print_file_list(const std::vector<file_list>& lists, size_t total_lines, std::ostream& os) {
   static const int header_width =
     6 /* offset */ + 1 /* slash */ + 6  /* size */ +
     1 /* column */ + 8 /* speed */ + 1  /* column */ +
     6 /* eta */    + 1 /* column */ + 6 /* avg_eta */ + 2 /* spaces */;
-  static bool printed_no_file = false;
-  static int nb_lines = 0;
+  static bool   printed_no_file = false;
+  static size_t nb_lines        = 0;
 
-  if(nb_lines == 0 && list.empty()) {
-    os << "\r --- No regular file open ---";
+  if(nb_lines == 0 && total_lines == 0) {
+    os << "\r --- No regular file open ---" << std::flush;
     printed_no_file = true;
     return;
   }
 
-  if((int)list.size() > nb_lines) {
-    int new_lines = list.size() - nb_lines;
+  if(total_lines > nb_lines) {
+    int new_lines = total_lines - nb_lines - 1;
     if(printed_no_file)
-      new_lines -= 2;
+      new_lines -= 1;
     printed_no_file = false;
     if(new_lines > 0)
       os << "\033[" << new_lines << "S";
   }
 
-  nb_lines = list.size();
+  nb_lines = total_lines;
   if(nb_lines > 1)
     os << "\033[" << (nb_lines - 1) << "A";
 
   int window_width = get_window_width();
-  for(auto it = list.begin(); it != list.end(); ++it) {
-    if(it != list.begin())
-      os << "\033[1B";
+  std::string prefix;
+  bool first = true;
+  for(auto& list : lists) {
+    prefix.clear();
+    if(lists.size() > 1) {
+      prefix += list.source.strid();
+      prefix += ':';
+    }
+    for(auto it = list.begin(); it != list.end(); ++it) {
+      if(first)
+        first = false;
+      else
+        os << "\033[1B";
 
-    // Print offset
-    os << "\r" << numerical_field_to_str(it->offset) << "/";
-    // Print file size
-    if(it->writable) // Don't display size on writable files
-      os << "   -  ";
-    else
-      os << numerical_field_to_str(it->size);
-    // Print speed
-    os << ":" << numerical_field_to_str(it->speed) << "/s:";
-    // Display ETA
-    os << format_eta(it->writable, it->size, it->offset, it->speed)
-              << ":"
-              << format_eta(it->writable, it->size, it->offset, it->average);
+      // Print offset
+      os << "\r" << numerical_field_to_str(it->offset) << "/";
+      // Print file size
+      if(it->writable) // Don't display size on writable files
+        os << "   -  ";
+      else
+        os << numerical_field_to_str(it->size);
+      // Print speed
+      os << ":" << numerical_field_to_str(it->speed) << "/s:";
+      // Display ETA
+      os << format_eta(it->writable, it->size, it->offset, it->speed)
+         << ":"
+         << format_eta(it->writable, it->size, it->offset, it->average);
 
-    os << "  ";
-    if(!it->updated)
-      os << "\033[7m";
-    os << shorten_string(it->name, window_width - header_width);
-    if(!it->updated)
-      os << "\033[0m";
+      os << "  ";
+      if(!it->updated)
+        os << "\033[7m";
+      os << shorten_string(prefix + it->name, window_width - header_width);
+      if(!it->updated)
+        os << "\033[0m";
+    }
   }
   os << "\033[0m" << std::flush;
 }

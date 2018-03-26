@@ -103,7 +103,7 @@ bool lsof_file_info::update_file_info(std::istream& is, file_list& list, const t
         return false;
       continue;
     }
-    auto cfile = find_file_in_list(list, f.fd, f.inode);
+    auto cfile = list.find(f.fd, f.inode);
     if(cfile == list.end()) {
       // Append new entry
       need_updated_name = true;
@@ -145,7 +145,7 @@ bool lsof_file_info::update_file_names(std::istream& is, file_list& list) {
         return false;
       continue;
     }
-    auto cfile = find_file_in_list(list, f.fd, f.inode);
+    auto cfile = list.find(f.fd, f.inode);
     if(cfile == list.end())
       continue;
     cfile->size = f.size;

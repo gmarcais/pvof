@@ -14,7 +14,10 @@
 class lsof_file_info : public file_info_updater {
   std::string pid_str_;
 public:
-  lsof_file_info(pid_t pid) : pid_str_(std::to_string(pid)) { }
+  lsof_file_info(pid_t pid, bool numeric = false)
+    : file_info_updater(create_identifier(numeric, pid))
+    , pid_str_(std::to_string(pid))
+  { }
 
   // Exec lsof -F on the given pid and update the corresponding list of
   // file information (mainly the offset).
