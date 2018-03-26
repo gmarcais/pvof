@@ -121,41 +121,38 @@ void print_file_list(const std::vector<file_list>& lists, size_t total_lines, st
     6 /* offset */ + 1 /* slash */ + 6  /* size */ +
     1 /* column */ + 8 /* speed */ + 1  /* column */ +
     6 /* eta */    + 1 /* column */ + 6 /* avg_eta */ + 2 /* spaces */;
-  static bool   printed_no_file = false;
-  static size_t nb_lines        = 0;
+  //  static bool   printed_no_file = false;
+  static size_t nb_lines        = 1;
 
-  if(nb_lines == 0 && total_lines == 0) {
+  if(total_lines == 0) {
     os << "\r --- No regular file open ---" << std::flush;
-    printed_no_file = true;
+    //    printed_no_file = true;
     return;
   }
 
-  if(total_lines > nb_lines) {
-    int new_lines = total_lines - nb_lines - 1;
-    if(printed_no_file)
-      new_lines -= 1;
-    printed_no_file = false;
-    if(new_lines > 0)
-      os << "\033[" << new_lines << "S";
-  }
+  // if(total_lines > nb_lines) {
+  //   int new_lines = total_lines - nb_lines - 1;
+  //   // if(printed_no_file)
+  //   //   new_lines -= 1;
+  //   //    printed_no_file = false;
+  //   if(new_lines > 0)
+  //     os << "\033[" << new_lines << "S";
+  // }
 
-  nb_lines = total_lines;
   if(nb_lines > 1)
     os << "\033[" << (nb_lines - 1) << "A";
 
   int window_width = get_window_width();
   std::string prefix;
-  bool first = true;
+  size_t line = 0;
   for(auto& list : lists) {
     prefix.clear();
     if(lists.size() > 1) {
       prefix += list.source.strid();
       prefix += ':';
     }
-    for(auto it = list.begin(); it != list.end(); ++it) {
-      if(first)
-        first = false;
-      else
+    for(auto it = list.begin(); it != list.end(); ++it, ++line) {
+      if(line > 0 && line <= nb_lines - 1)
         os << "\033[1B";
 
       // Print offset
@@ -173,12 +170,16 @@ void print_file_list(const std::vector<file_list>& lists, size_t total_lines, st
          << format_eta(it->writable, it->size, it->offset, it->average);
 
       os << "  ";
+      //      os << nb_lines << ' ' << total_lines << ' ' << line;
       if(!it->updated)
         os << "\033[7m";
       os << shorten_string(prefix + it->name, window_width - header_width);
       if(!it->updated)
         os << "\033[0m";
+      if(line >= nb_lines - 1 && line < total_lines - 1)
+        os << '\n';
     }
   }
   os << "\033[0m" << std::flush;
+  nb_lines = total_lines;
 }

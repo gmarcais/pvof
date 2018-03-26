@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <vector>
+#include <set>
 
 #include <src/pipe_open.hpp>
 #include <src/lsof.hpp>
@@ -116,21 +117,49 @@ void wait_sub_command(pid_t pid, bool forever = false) {
   exit(EXIT_FAILURE);
 }
 
-bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os, bool force, bool numeric = false) {
+#ifdef HAVE_PROC
+void update_pid_children(std::set<pid_t>& pid_set, updater_list_type& updaters, list_of_file_list& files) {
+  std::string pid_str;
+  std::string path;
+  pid_t       npid;
+  for(auto pid : pid_set) {
+    pid_str = std::to_string(pid);
+    path = "/proc/";
+    path += pid_str;
+    path += "/task/";
+    path += pid_str;
+    path += "/children";
+    std::ifstream is(path);
+    while(is >> npid) {
+      auto is_new = pid_set.insert(npid);
+      if(is_new.second) { // new pid inserted
+        if(!args.lsof_flag)
+          updaters.emplace_back(new proc_file_info(npid, args.force_flag, args.numeric_flag));
+        else
+          updaters.emplace_back(new lsof_file_info(npid, args.numeric_flag));
+        files.push_back(*updaters.back());
+      }
+    }
+  }
+}
+#endif // HAVE_PROC
+
+bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os) {
   prepare_display();
 
-  typedef std::unique_ptr<file_info_updater> updater_ptr;
-  std::vector<file_list>   info_files;
-  std::vector<updater_ptr> info_updaters;
+  list_of_file_list info_files;
+  updater_list_type info_updaters;
+  std::set<pid_t>   pid_set;
 
   for(const auto pid : pids) {
 #ifdef HAVE_PROC
     if(!args.lsof_flag)
-      info_updaters.emplace_back(new proc_file_info(pid, force, numeric));
+      info_updaters.emplace_back(new proc_file_info(pid, args.force_flag, args.numeric_flag));
     else
 #endif
-      info_updaters.emplace_back(new lsof_file_info(pid, numeric));
+      info_updaters.emplace_back(new lsof_file_info(pid, args.numeric_flag));
     info_files.push_back(*info_updaters.back());
+    pid_set.insert(pid);
   }
 
   timespec time_tick;
@@ -143,7 +172,7 @@ bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os, boo
   while(!done) {
     bool success = false;
     size_t total_lines = 0;
-    for(size_t i = 0; i < pids.size(); ++i) {
+    for(size_t i = 0; i < info_updaters.size(); ++i) {
       success = info_updaters[i]->update_file_info(info_files[i], time_tick) || success;
       total_lines += info_files[i].size();
     }
@@ -153,6 +182,10 @@ bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os, boo
       print_file_list(info_files, total_lines, os);
       need_newline = true;
     }
+#ifdef HAVE_PROC
+    if(args.follow_flag)
+      update_pid_children(pid_set, info_updaters, info_files);
+#endif
 
     timespec current_time;
     clock_gettime(CLOCK_MONOTONIC, &current_time);
@@ -171,6 +204,7 @@ bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os, boo
   return true;
 }
 
+#ifdef HAVE_PROC
 bool display_io_progress(const std::vector<pid_t>& pids, std::ostream& os, bool numeric = false) {
   struct iostat {
     const std::string label;
@@ -259,6 +293,7 @@ bool display_io_progress(const std::vector<pid_t>& pids, std::ostream& os, bool 
 
   return true;
 }
+#endif // HAVE_PROC
 
 bool open_output(int fd, std::ofstream& os) {
   // Select which terminal to display on
@@ -302,9 +337,13 @@ int main(int argc, char *argv[])
 
   if(!wait_forever) {
     if(args.io_flag) {
+#ifdef HAVE_PROC
       wait_forever = !display_io_progress(pids, output, args.numeric_flag);
+#else
+      pvof::error() << "IO statistics not supported on this architecture."
+#endif
     } else {
-      wait_forever = !display_file_progress(pids, output, args.force_flag, args.numeric_flag);
+      wait_forever = !display_file_progress(pids, output);
     }
   }
 

@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <memory>
 
 // Information kept about one file
 struct file_info {
@@ -53,6 +54,7 @@ struct file_list {
   const_iterator end() const { return list.end(); }
   size_t size() const { return list.size(); }
 };
+typedef std::vector<file_list> list_of_file_list;
 
 std::string create_identifier(bool numeric, pid_t pid);
 
@@ -64,5 +66,7 @@ public:
   const std::string& strid() const { return strid_; }
   virtual bool update_file_info(file_list& list, const timespec& stamp) = 0;
 };
+typedef std::unique_ptr<file_info_updater> updater_ptr;
+typedef std::vector<updater_ptr>           updater_list_type;
 
 #endif
