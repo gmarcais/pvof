@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <memory>
 
 // Information kept about one file
 struct file_info {
@@ -29,15 +30,66 @@ struct find_file {
     return fd_ == rhs.fd && inode_ == rhs.inode;
   }
 };
-typedef std::vector<file_info> file_list;
-// Find a file in the list matching (fd, inode)
-inline file_list::iterator find_file_in_list(file_list& list, int fd, ino_t inode) {
-  return std::find_if(list.begin(), list.end(), find_file(fd, inode));
-}
+
+// Aggregate IO information
+struct rw {
+  uint64_t read, write;
+};
+struct speed {
+  double read, write;
+};
+
+struct io_info {
+  struct timespec stamp;
+  struct timespec start;
+  rw char_counter, ochar_counter;
+  speed char_speed, char_avg;
+  rw sys_counter, osys_counter;
+  speed sys_speed, sys_avg;
+  rw io_counter, oio_counter;
+  speed io_speed, io_avg;
+  io_info() : stamp({0, 0}), start({0, 0}) { }
+};
+typedef std::vector<io_info> io_info_list;
+
+
+class file_info_updater;
+struct file_list {
+  typedef std::vector<file_info>    list_type;
+  typedef list_type::iterator       iterator;
+  typedef list_type::const_iterator const_iterator;
+
+  file_info_updater& source;
+  list_type          list;
+
+  file_list(file_info_updater& s)
+    : source(s)
+  { }
+  iterator find(int fd, ino_t inode) { return std::find_if(list.begin(), list.end(), find_file(fd, inode)); }
+
+  void push_back(file_info&& f) { list.push_back(std::move(f)); }
+  void push_back(const file_info& f) { list.push_back(f); }
+  iterator back_iterator() { return list.end() - 1; }
+  iterator begin() { return list.begin(); }
+  iterator end() { return list.end(); }
+  const_iterator begin() const { return list.begin(); }
+  const_iterator end() const { return list.end(); }
+  size_t size() const { return list.size(); }
+};
+typedef std::vector<file_list> list_of_file_list;
+
+std::string create_identifier(bool numeric, pid_t pid);
 
 class file_info_updater {
+  const std::string strid_;
 public:
+  file_info_updater() : strid_("") { }
+  file_info_updater(const std::string&& s) : strid_(std::move(s)) { }
+  const std::string& strid() const { return strid_; }
   virtual bool update_file_info(file_list& list, const timespec& stamp) = 0;
+  virtual bool update_io_info(io_info& info, const timespec& stamp) = 0;
 };
+typedef std::unique_ptr<file_info_updater> updater_ptr;
+typedef std::vector<updater_ptr>           updater_list_type;
 
 #endif

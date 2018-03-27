@@ -5,15 +5,15 @@ posix # Don't switch arguments around
 
 option("p", "pid") {
   description "Look at files of this process id"
-  int64 }
+  int64; multiple }
 option("n", "seconds") {
   description "Number of seconds between updates"
   int32; default "1" }
-option("i", "io") {
-  description "Aggregate IO information from /proc/<pid>/io"
-  off }
 option("f", "force") {
   description "Force all files, not only regular files"
+  off }
+option("F", "follow") {
+  description "Show progress of children processes"
   off }
 option("lsof") {
   description "Force using lsof, instead of /proc/<pid>/fdinfo"
@@ -21,6 +21,9 @@ option("lsof") {
 option("fd") {
   description "File descriptor of a terminal to display progress on"
   int32 }
+option("N", "numeric") {
+  description "Display PIDs instead of command names"
+  off }
 arg("command") {
   description "Process to launch"
   c_string; multiple }

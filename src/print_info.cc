@@ -1,45 +1,10 @@
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <signal.h>
 #include <string.h>
 #include <math.h>
 #include <iostream>
+
+#include <src/tty_writer.hpp>
 #include <src/print_info.hpp>
 
-static volatile bool invalid_window_width = true;
-static int window_width = 0;
-
-// There is a small race condition here in the management of the
-// invalid_window_width global, which could lead to some visual
-// glitch. Not so important.
-void sig_winch_handler(int s) {
-  invalid_window_width = true;
-}
-
-void prepare_display() {
-#ifdef SIGWINCH
-  struct sigaction act;
-  memset(&act, '\0', sizeof(act));
-  act.sa_handler  = sig_winch_handler;
-  act.sa_flags   |= SA_RESTART;
-  if(sigaction(SIGWINCH, &act, 0) == -1) // Ignore if it fails. There just won't be any updates
-    std::cerr << "Setting signal failed\n";
-#endif
-}
-
-int get_window_width() {
-  if(invalid_window_width) {
-    struct winsize w;
-    if(ioctl(2, TIOCGWINSZ, &w))
-      window_width = 80; // Assume some default value
-    else
-      window_width = w.ws_col;
-    invalid_window_width = false;
-  }
-  return window_width;
-}
 
 std::string shorten_string(std::string s, unsigned int length) {
   if(s.size() <= length) {
@@ -116,58 +81,68 @@ std::string format_eta(bool writable, off_t size, off_t offset, double speed) {
   return seconds_to_str(offset / -speed);
 }
 
-void print_file_list(file_list& list, std::ostream& os) {
-  static const int header_width =
+void print_file_list(const std::vector<file_list>& lists, const io_info_list& ios, tty_writer& writer) {
+  constexpr int header_width =
     6 /* offset */ + 1 /* slash */ + 6  /* size */ +
     1 /* column */ + 8 /* speed */ + 1  /* column */ +
     6 /* eta */    + 1 /* column */ + 6 /* avg_eta */ + 2 /* spaces */;
-  static bool printed_no_file = false;
-  static int nb_lines = 0;
+  constexpr int ioheader_width =
+    4 /* CHAR */ + 1 /* space */ + 6 /* rchar */ +
+    1 /* pipe */ + 6 /* wchar */ + 1 /* space */ +
+    8 /* rspeed */ + 1 /* column */ + 8 /* ravg */ +
+    1 /* pipe */ + 8 /* wspeed */ + 1 /* column */ +
+    8 /* wavg */ + 4 /* IO */  + 6 /* rchar */ +
+    1 /* pipe */ + 6 /* wchar */ + 1 /* space */ +
+    8 /* rspeed */ + 1 /* column */ + 8 /* ravg */ +
+    1 /* pipe */ + 8 /* wspeed */ + 1 /* column */ +
+    8 /* wavg */ + 2 /* spaces */;
 
-  if(nb_lines == 0 && list.empty()) {
-    os << "\r --- No regular file open ---";
-    printed_no_file = true;
-    return;
+  auto        session      = writer.start_session();
+  const int   window_width = writer.get_window_width();
+
+  for(size_t i = 0; i < lists.size(); ++i) {
+    const auto& io = ios[i];
+    const auto& list = lists[i];
+    { auto line = session.start_line();
+      line << "\033[4m"
+           << "CHAR " << numerical_field_to_str(io.char_counter.read)
+           << '|' << numerical_field_to_str(io.char_counter.write)
+           << ' ' << numerical_field_to_str(io.char_speed.read)
+           << "/s:" << numerical_field_to_str(io.char_avg.read)
+           << "/s|" << numerical_field_to_str(io.char_speed.write)
+           << "/s:" << numerical_field_to_str(io.char_avg.write)
+           << "/s IO " << numerical_field_to_str(io.io_counter.read)
+           << '|' << numerical_field_to_str(io.io_counter.write)
+           << ' ' << numerical_field_to_str(io.io_speed.read)
+           << "/s:" << numerical_field_to_str(io.io_avg.read)
+           << "/s|" << numerical_field_to_str(io.io_speed.write)
+           << "/s:" << numerical_field_to_str(io.io_avg.write)
+           << "/s  " << shorten_string(list.source.strid(), window_width - ioheader_width)
+           << "\033[0m";
+    }
+
+    for(auto it = list.begin(); it != list.end(); ++it) {
+      auto line = session.start_line();
+      // Print offset
+      line << numerical_field_to_str(it->offset) << "/";
+      // Print file size
+      if(it->writable) // Don't display size on writable files
+        line << "   -  ";
+      else
+        line << numerical_field_to_str(it->size);
+      // Print speed
+      line << ":" << numerical_field_to_str(it->speed) << "/s:";
+      // Display ETA
+      line << format_eta(it->writable, it->size, it->offset, it->speed)
+         << ":"
+         << format_eta(it->writable, it->size, it->offset, it->average);
+
+      line << "  ";
+      if(!it->updated)
+        line << "\033[7m";
+      line << shorten_string(it->name, window_width - header_width);
+      if(!it->updated)
+        line << "\033[0m";
+    }
   }
-
-  if((int)list.size() > nb_lines) {
-    int new_lines = list.size() - nb_lines;
-    if(printed_no_file)
-      new_lines -= 2;
-    printed_no_file = false;
-    if(new_lines > 0)
-      os << "\033[" << new_lines << "S";
-  }
-
-  nb_lines = list.size();
-  if(nb_lines > 1)
-    os << "\033[" << (nb_lines - 1) << "A";
-
-  int window_width = get_window_width();
-  for(auto it = list.begin(); it != list.end(); ++it) {
-    if(it != list.begin())
-      os << "\033[1B";
-
-    // Print offset
-    os << "\r" << numerical_field_to_str(it->offset) << "/";
-    // Print file size
-    if(it->writable) // Don't display size on writable files
-      os << "   -  ";
-    else
-      os << numerical_field_to_str(it->size);
-    // Print speed
-    os << ":" << numerical_field_to_str(it->speed) << "/s:";
-    // Display ETA
-    os << format_eta(it->writable, it->size, it->offset, it->speed)
-              << ":"
-              << format_eta(it->writable, it->size, it->offset, it->average);
-
-    os << "  ";
-    if(!it->updated)
-      os << "\033[7m";
-    os << shorten_string(it->name, window_width - header_width);
-    if(!it->updated)
-      os << "\033[0m";
-  }
-  os << "\033[0m" << std::flush;
 }
