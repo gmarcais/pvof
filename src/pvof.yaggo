@@ -9,9 +9,6 @@ option("p", "pid") {
 option("n", "seconds") {
   description "Number of seconds between updates"
   int32; default "1" }
-option("i", "io") {
-  description "Aggregate IO information from /proc/<pid>/io"
-  off }
 option("f", "force") {
   description "Force all files, not only regular files"
   off }

@@ -31,6 +31,28 @@ struct find_file {
   }
 };
 
+// Aggregate IO information
+struct rw {
+  uint64_t read, write;
+};
+struct speed {
+  double read, write;
+};
+
+struct io_info {
+  struct timespec stamp;
+  struct timespec start;
+  rw char_counter, ochar_counter;
+  speed char_speed, char_avg;
+  rw sys_counter, osys_counter;
+  speed sys_speed, sys_avg;
+  rw io_counter, oio_counter;
+  speed io_speed, io_avg;
+  io_info() : stamp({0, 0}), start({0, 0}) { }
+};
+typedef std::vector<io_info> io_info_list;
+
+
 class file_info_updater;
 struct file_list {
   typedef std::vector<file_info>    list_type;
@@ -65,6 +87,7 @@ public:
   file_info_updater(const std::string&& s) : strid_(std::move(s)) { }
   const std::string& strid() const { return strid_; }
   virtual bool update_file_info(file_list& list, const timespec& stamp) = 0;
+  virtual bool update_io_info(io_info& info, const timespec& stamp) = 0;
 };
 typedef std::unique_ptr<file_info_updater> updater_ptr;
 typedef std::vector<updater_ptr>           updater_list_type;

@@ -12,5 +12,5 @@ std::string create_identifier(bool numeric, pid_t pid) {
   std::getline(is, name, '\0');
   if(name.empty()) return strpid;
   const auto slash = name.find_last_of("/");
-  return (slash == std::string::npos) ? name : name.substr(slash + 1);
+  return strpid + ":" + ((slash == std::string::npos) ? name : name.substr(slash + 1));
 }

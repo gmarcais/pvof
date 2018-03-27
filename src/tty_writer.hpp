@@ -59,7 +59,7 @@ class tty_writer {
       : m_os(os)
     { }
     ~line() {
-      m_os << CSI "K";
+      m_os << CSI "K" << CSI "0m";
     }
 
     template<typename T>

@@ -81,27 +81,46 @@ std::string format_eta(bool writable, off_t size, off_t offset, double speed) {
   return seconds_to_str(offset / -speed);
 }
 
-void print_file_list(const std::vector<file_list>& lists, size_t total_lines, tty_writer& writer) {
-  static const int header_width =
+void print_file_list(const std::vector<file_list>& lists, const io_info_list& ios, tty_writer& writer) {
+  constexpr int header_width =
     6 /* offset */ + 1 /* slash */ + 6  /* size */ +
     1 /* column */ + 8 /* speed */ + 1  /* column */ +
     6 /* eta */    + 1 /* column */ + 6 /* avg_eta */ + 2 /* spaces */;
+  constexpr int ioheader_width =
+    4 /* CHAR */ + 1 /* space */ + 6 /* rchar */ +
+    1 /* pipe */ + 6 /* wchar */ + 1 /* space */ +
+    8 /* rspeed */ + 1 /* column */ + 8 /* ravg */ +
+    1 /* pipe */ + 8 /* wspeed */ + 1 /* column */ +
+    8 /* wavg */ + 4 /* IO */  + 6 /* rchar */ +
+    1 /* pipe */ + 6 /* wchar */ + 1 /* space */ +
+    8 /* rspeed */ + 1 /* column */ + 8 /* ravg */ +
+    1 /* pipe */ + 8 /* wspeed */ + 1 /* column */ +
+    8 /* wavg */ + 2 /* spaces */;
 
-  auto session = writer.start_session();
-  if(total_lines == 0) {
-    auto line = session.start_line();
-    line << " --- No regular file open ---";
-    return;
-  }
+  auto        session      = writer.start_session();
+  const int   window_width = writer.get_window_width();
 
-  const int window_width = writer.get_window_width();
-  std::string prefix;
-  for(auto& list : lists) {
-    prefix.clear();
-    if(lists.size() > 1) {
-      prefix += list.source.strid();
-      prefix += ':';
+  for(size_t i = 0; i < lists.size(); ++i) {
+    const auto& io = ios[i];
+    const auto& list = lists[i];
+    { auto line = session.start_line();
+      line << "\033[4m"
+           << "CHAR " << numerical_field_to_str(io.char_counter.read)
+           << '|' << numerical_field_to_str(io.char_counter.write)
+           << ' ' << numerical_field_to_str(io.char_speed.read)
+           << "/s:" << numerical_field_to_str(io.char_avg.read)
+           << "/s|" << numerical_field_to_str(io.char_speed.write)
+           << "/s:" << numerical_field_to_str(io.char_avg.write)
+           << "/s IO " << numerical_field_to_str(io.io_counter.read)
+           << '|' << numerical_field_to_str(io.io_counter.write)
+           << ' ' << numerical_field_to_str(io.io_speed.read)
+           << "/s:" << numerical_field_to_str(io.io_avg.read)
+           << "/s|" << numerical_field_to_str(io.io_speed.write)
+           << "/s:" << numerical_field_to_str(io.io_avg.write)
+           << "/s  " << shorten_string(list.source.strid(), window_width - ioheader_width)
+           << "\033[0m";
     }
+
     for(auto it = list.begin(); it != list.end(); ++it) {
       auto line = session.start_line();
       // Print offset
@@ -121,7 +140,7 @@ void print_file_list(const std::vector<file_list>& lists, size_t total_lines, tt
       line << "  ";
       if(!it->updated)
         line << "\033[7m";
-      line << shorten_string(prefix + it->name, window_width - header_width);
+      line << shorten_string(it->name, window_width - header_width);
       if(!it->updated)
         line << "\033[0m";
     }

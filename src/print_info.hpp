@@ -6,7 +6,7 @@
 #include <src/tty_writer.hpp>
 
 void prepare_display();
-void print_file_list(const std::vector<file_list>& lists, size_t total_lines, tty_writer& writer);
+void print_file_list(const std::vector<file_list>& lists, const io_info_list& ios, tty_writer& writer);
 
 std::string numerical_field_to_str(double val);
 std::string seconds_to_str(double seconds);

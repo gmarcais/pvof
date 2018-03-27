@@ -118,10 +118,13 @@ void wait_sub_command(pid_t pid, bool forever = false) {
 }
 
 #ifdef HAVE_PROC
-void update_pid_children(std::set<pid_t>& pid_set, updater_list_type& updaters, list_of_file_list& files) {
+void update_pid_children(std::set<pid_t>& pid_set, updater_list_type& updaters, list_of_file_list& files,
+                         io_info_list& info_ios) {
   std::string pid_str;
   std::string path;
   pid_t       npid;
+  timespec time_tick;
+  clock_gettime(CLOCK_MONOTONIC, &time_tick);
   for(auto pid : pid_set) {
     pid_str = std::to_string(pid);
     path = "/proc/";
@@ -138,6 +141,8 @@ void update_pid_children(std::set<pid_t>& pid_set, updater_list_type& updaters, 
         else
           updaters.emplace_back(new lsof_file_info(npid, args.numeric_flag));
         files.push_back(*updaters.back());
+        info_ios.push_back(io_info());
+        updaters.back()->update_io_info(info_ios.back(), time_tick);
       }
     }
   }
@@ -146,8 +151,15 @@ void update_pid_children(std::set<pid_t>& pid_set, updater_list_type& updaters, 
 
 bool display_file_progress(const std::vector<pid_t>& pids, tty_writer& writer) {
   list_of_file_list info_files;
+  io_info_list      info_ios;
   updater_list_type info_updaters;
   std::set<pid_t>   pid_set;
+
+  timespec time_tick;
+  if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
+    std::cerr << "Can't get time" << std::endl;
+    return false;
+  }
 
   for(const auto pid : pids) {
 #ifdef HAVE_PROC
@@ -157,29 +169,27 @@ bool display_file_progress(const std::vector<pid_t>& pids, tty_writer& writer) {
 #endif
       info_updaters.emplace_back(new lsof_file_info(pid, args.numeric_flag));
     info_files.push_back(*info_updaters.back());
+    info_ios.push_back(io_info());
+    info_updaters.back()->update_io_info(info_ios.back(), time_tick);
     pid_set.insert(pid);
   }
 
-  timespec time_tick;
-  if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
-    std::cerr << "Can't get time" << std::endl;
-    return false;
-  }
-
+  clock_gettime(CLOCK_MONOTONIC, &time_tick);
   while(!done) {
     bool success = false;
     size_t total_lines = 0;
     for(size_t i = 0; i < info_updaters.size(); ++i) {
+      success = info_updaters[i]->update_io_info(info_ios[i], time_tick) || success;
       success = info_updaters[i]->update_file_info(info_files[i], time_tick) || success;
       total_lines += info_files[i].size();
     }
     if(!success)
       break;
     if(!no_display)
-      print_file_list(info_files, total_lines, writer);
+      print_file_list(info_files, info_ios, writer);
 #ifdef HAVE_PROC
     if(args.follow_flag)
-      update_pid_children(pid_set, info_updaters, info_files);
+      update_pid_children(pid_set, info_updaters, info_files, info_ios);
 #endif
 
     timespec current_time;
@@ -193,97 +203,6 @@ bool display_file_progress(const std::vector<pid_t>& pids, tty_writer& writer) {
 
   return true;
 }
-
-#ifdef HAVE_PROC
-bool display_io_progress(const std::vector<pid_t>& pids, std::ostream& os, bool numeric = false) {
-  struct iostat {
-    const std::string label;
-    const size_t      start_value;
-    size_t            value;
-  };
-  struct process_stat {
-    const std::string path;  // Path to io file in proc
-    const std::string strid; // Identifier
-    std::vector<iostat> stats;
-    process_stat(std::string&& p, std::string&& s)
-      : path(std::move(p))
-      , strid(std::move(s))
-    { }
-  };
-  std::vector<process_stat> process_stats;
-
-  timespec time_tick;
-  if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
-    os << "Can't get time" << std::endl;
-    return false;
-  }
-  const timespec start_time = time_tick;
-
-  std::string label;
-  size_t      value;
-  size_t      width    = 0;
-  size_t      nb_lines = 0;     // Total number of lines to jump back
-
-  // First read of the /proc/<pid>/io file
-  for(size_t i = 0; i < pids.size(); ++i) {
-    const pid_t pid = pids[i];
-    process_stats.emplace_back(std::string("/proc/") + std::to_string(pid) + "/io", create_identifier(numeric, pid));
-    auto& pstat = process_stats.back();
-    std::ifstream is(pstat.path);
-    if(!is.good()) {
-      os << "Can't open io file '" << pstat.path << '\'' << std::endl;
-      return false;
-    }
-
-    while(is >> label >> value) {
-      width = std::max(width, label.size());
-      pstat.stats.push_back({label, value, value});
-      ++nb_lines;
-    }
-  }
-
-  bool first = true;
-  timespec new_time;
-  while(!done) {
-    if(!first)
-      os << "\033[" << nb_lines << 'F';
-    else
-      first = false;
-    for(auto& pstat : process_stats) {
-      std::ifstream is(pstat.path);
-      if(!is.good())
-        return false;
-
-      clock_gettime(CLOCK_MONOTONIC, &new_time);
-      const double delta = timespec_double(new_time - time_tick);
-      const double start_delta = timespec_double(new_time - start_time);
-      for(auto& st : pstat.stats) {
-        is >> label >> value;
-        if(st.label != label) {
-          os << "Unexpected change in '" << pstat.path << " 'format" << std::endl;
-          return false;
-        }
-        double speed = delta > 0.0 ? (double)(value - st.value) / delta : 0.0;
-        double avg = start_delta > 0.0 ? (double)(value - st.start_value) / start_delta : 0.0;
-        st.value = value;
-        os << pstat.strid << ": "
-           << std::setw(width) << std::left << label << std::right
-           << ' ' << numerical_field_to_str(value)
-           << ' ' << numerical_field_to_str(speed)
-           << "/s:" << numerical_field_to_str(avg)
-           << "/s\n";
-      }
-    }
-    os << std::flush;
-
-    time_tick = new_time;
-    new_time += args.seconds_arg;
-    clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &new_time, NULL);
-  }
-
-  return true;
-}
-#endif // HAVE_PROC
 
 bool open_output(int fd, std::ofstream& os) {
   // Select which terminal to display on
@@ -327,15 +246,7 @@ int main(int argc, char *argv[])
   tty_writer writer(output);
 
   if(!wait_forever) {
-    if(args.io_flag) {
-#ifdef HAVE_PROC
-      wait_forever = !display_io_progress(pids, output, args.numeric_flag);
-#else
-      pvof::error() << "IO statistics not supported on this architecture."
-#endif
-    } else {
-      wait_forever = !display_file_progress(pids, writer);
-    }
+    wait_forever = !display_file_progress(pids, writer);
   }
 
 

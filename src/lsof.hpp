@@ -22,6 +22,7 @@ public:
   // Exec lsof -F on the given pid and update the corresponding list of
   // file information (mainly the offset).
   virtual bool update_file_info(file_list& list, const timespec& stamp);
+  virtual bool update_io_info(io_info& info, const timespec& stamp) { /* Not defined */ return true; }
 
 protected:
   // Parse a line of the output of lsof -F and fill up f
