@@ -1,45 +1,10 @@
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <signal.h>
 #include <string.h>
 #include <math.h>
 #include <iostream>
+
+#include <src/tty_writer.hpp>
 #include <src/print_info.hpp>
 
-static volatile bool invalid_window_width = true;
-static int window_width = 0;
-
-// There is a small race condition here in the management of the
-// invalid_window_width global, which could lead to some visual
-// glitch. Not so important.
-void sig_winch_handler(int s) {
-  invalid_window_width = true;
-}
-
-void prepare_display() {
-#ifdef SIGWINCH
-  struct sigaction act;
-  memset(&act, '\0', sizeof(act));
-  act.sa_handler  = sig_winch_handler;
-  act.sa_flags   |= SA_RESTART;
-  if(sigaction(SIGWINCH, &act, 0) == -1) // Ignore if it fails. There just won't be any updates
-    std::cerr << "Setting signal failed\n";
-#endif
-}
-
-int get_window_width() {
-  if(invalid_window_width) {
-    struct winsize w;
-    if(ioctl(2, TIOCGWINSZ, &w))
-      window_width = 80; // Assume some default value
-    else
-      window_width = w.ws_col;
-    invalid_window_width = false;
-  }
-  return window_width;
-}
 
 std::string shorten_string(std::string s, unsigned int length) {
   if(s.size() <= length) {
@@ -116,70 +81,49 @@ std::string format_eta(bool writable, off_t size, off_t offset, double speed) {
   return seconds_to_str(offset / -speed);
 }
 
-void print_file_list(const std::vector<file_list>& lists, size_t total_lines, std::ostream& os) {
+void print_file_list(const std::vector<file_list>& lists, size_t total_lines, tty_writer& writer) {
   static const int header_width =
     6 /* offset */ + 1 /* slash */ + 6  /* size */ +
     1 /* column */ + 8 /* speed */ + 1  /* column */ +
     6 /* eta */    + 1 /* column */ + 6 /* avg_eta */ + 2 /* spaces */;
-  //  static bool   printed_no_file = false;
-  static size_t nb_lines        = 1;
 
+  auto session = writer.start_session();
   if(total_lines == 0) {
-    os << "\r --- No regular file open ---" << std::flush;
-    //    printed_no_file = true;
+    auto line = session.start_line();
+    line << " --- No regular file open ---";
     return;
   }
 
-  // if(total_lines > nb_lines) {
-  //   int new_lines = total_lines - nb_lines - 1;
-  //   // if(printed_no_file)
-  //   //   new_lines -= 1;
-  //   //    printed_no_file = false;
-  //   if(new_lines > 0)
-  //     os << "\033[" << new_lines << "S";
-  // }
-
-  if(nb_lines > 1)
-    os << "\033[" << (nb_lines - 1) << "A";
-
-  int window_width = get_window_width();
+  const int window_width = writer.get_window_width();
   std::string prefix;
-  size_t line = 0;
   for(auto& list : lists) {
     prefix.clear();
     if(lists.size() > 1) {
       prefix += list.source.strid();
       prefix += ':';
     }
-    for(auto it = list.begin(); it != list.end(); ++it, ++line) {
-      if(line > 0 && line <= nb_lines - 1)
-        os << "\033[1B";
-
+    for(auto it = list.begin(); it != list.end(); ++it) {
+      auto line = session.start_line();
       // Print offset
-      os << "\r" << numerical_field_to_str(it->offset) << "/";
+      line << numerical_field_to_str(it->offset) << "/";
       // Print file size
       if(it->writable) // Don't display size on writable files
-        os << "   -  ";
+        line << "   -  ";
       else
-        os << numerical_field_to_str(it->size);
+        line << numerical_field_to_str(it->size);
       // Print speed
-      os << ":" << numerical_field_to_str(it->speed) << "/s:";
+      line << ":" << numerical_field_to_str(it->speed) << "/s:";
       // Display ETA
-      os << format_eta(it->writable, it->size, it->offset, it->speed)
+      line << format_eta(it->writable, it->size, it->offset, it->speed)
          << ":"
          << format_eta(it->writable, it->size, it->offset, it->average);
 
-      os << "  ";
-      //      os << nb_lines << ' ' << total_lines << ' ' << line;
+      line << "  ";
       if(!it->updated)
-        os << "\033[7m";
-      os << shorten_string(prefix + it->name, window_width - header_width);
+        line << "\033[7m";
+      line << shorten_string(prefix + it->name, window_width - header_width);
       if(!it->updated)
-        os << "\033[0m";
-      if(line >= nb_lines - 1 && line < total_lines - 1)
-        os << '\n';
+        line << "\033[0m";
     }
   }
-  os << "\033[0m" << std::flush;
-  nb_lines = total_lines;
 }

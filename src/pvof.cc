@@ -144,9 +144,7 @@ void update_pid_children(std::set<pid_t>& pid_set, updater_list_type& updaters, 
 }
 #endif // HAVE_PROC
 
-bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os) {
-  prepare_display();
-
+bool display_file_progress(const std::vector<pid_t>& pids, tty_writer& writer) {
   list_of_file_list info_files;
   updater_list_type info_updaters;
   std::set<pid_t>   pid_set;
@@ -164,11 +162,10 @@ bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os) {
 
   timespec time_tick;
   if(clock_gettime(CLOCK_MONOTONIC, &time_tick)) {
-    os << "Can't get time" << std::endl;
+    std::cerr << "Can't get time" << std::endl;
     return false;
   }
 
-  bool need_newline = false;
   while(!done) {
     bool success = false;
     size_t total_lines = 0;
@@ -178,10 +175,8 @@ bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os) {
     }
     if(!success)
       break;
-    if(!no_display) {
-      print_file_list(info_files, total_lines, os);
-      need_newline = true;
-    }
+    if(!no_display)
+      print_file_list(info_files, total_lines, writer);
 #ifdef HAVE_PROC
     if(args.follow_flag)
       update_pid_children(pid_set, info_updaters, info_files);
@@ -196,11 +191,6 @@ bool display_file_progress(const std::vector<pid_t>& pids, std::ostream& os) {
     clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &time_tick, 0);
   }
 
-  os << "\033[0m";
-  if(need_newline)
-    os << std::endl;
-  else
-    os << std::flush;
   return true;
 }
 
@@ -334,6 +324,7 @@ int main(int argc, char *argv[])
     std::cerr << "pvof: No terminal to display on" << std::endl;
     wait_forever = true;
   }
+  tty_writer writer(output);
 
   if(!wait_forever) {
     if(args.io_flag) {
@@ -343,7 +334,7 @@ int main(int argc, char *argv[])
       pvof::error() << "IO statistics not supported on this architecture."
 #endif
     } else {
-      wait_forever = !display_file_progress(pids, output);
+      wait_forever = !display_file_progress(pids, writer);
     }
   }
 
