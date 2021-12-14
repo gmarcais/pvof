@@ -140,7 +140,7 @@ void update_pid_children(std::set<pid_t>& pid_set, updater_list_type& updaters, 
           updaters.emplace_back(new proc_file_info(npid, args.force_flag, args.numeric_flag));
         else
           updaters.emplace_back(new lsof_file_info(npid, args.numeric_flag));
-        files.push_back(*updaters.back());
+        files.push_back(file_list());
         info_ios.push_back(io_info());
         updaters.back()->update_io_info(info_ios.back(), time_tick);
       }
@@ -168,13 +168,14 @@ bool display_file_progress(const std::vector<pid_t>& pids, tty_writer& writer) {
     else
 #endif
       info_updaters.emplace_back(new lsof_file_info(pid, args.numeric_flag));
-    info_files.push_back(*info_updaters.back());
+    info_files.push_back(file_list());
     info_ios.push_back(io_info());
     info_updaters.back()->update_io_info(info_ios.back(), time_tick);
     pid_set.insert(pid);
   }
 
   clock_gettime(CLOCK_MONOTONIC, &time_tick);
+  std::vector<size_t> dead_processes;
   while(!done) {
     bool success = false;
     size_t total_lines = 0;
@@ -182,11 +183,21 @@ bool display_file_progress(const std::vector<pid_t>& pids, tty_writer& writer) {
       success = info_updaters[i]->update_io_info(info_ios[i], time_tick) || success;
       success = info_updaters[i]->update_file_info(info_files[i], time_tick) || success;
       total_lines += info_files[i].size();
+      if(args.clean_arg && info_ios[i].dead_count > args.clean_arg)
+        dead_processes.push_back(i);
     }
     if(!success)
       break;
     if(!no_display)
-      print_file_list(info_files, info_ios, writer);
+      print_file_list(info_updaters, info_files, info_ios, writer);
+
+    // Clean up
+    for(auto it = dead_processes.rbegin(); it != dead_processes.rend(); ++it) {
+      info_ios.erase(info_ios.begin() + *it);
+      info_files.erase(info_files.begin() + *it);
+      pid_set.erase(*it);
+    }
+    dead_processes.clear();
 #ifdef HAVE_PROC
     if(args.follow_flag)
       update_pid_children(pid_set, info_updaters, info_files, info_ios);
@@ -243,7 +254,7 @@ int main(int argc, char *argv[])
     std::cerr << "pvof: No terminal to display on" << std::endl;
     wait_forever = true;
   }
-  tty_writer writer(output);
+  tty_writer writer(output, !args.nocolor_flag);
 
   if(!wait_forever) {
     wait_forever = !display_file_progress(pids, writer);

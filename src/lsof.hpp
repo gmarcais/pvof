@@ -15,7 +15,7 @@ class lsof_file_info : public file_info_updater {
   std::string pid_str_;
 public:
   lsof_file_info(pid_t pid, bool numeric = false)
-    : file_info_updater(create_identifier(numeric, pid))
+    : file_info_updater(pid, create_identifier(numeric, pid))
     , pid_str_(std::to_string(pid))
   { }
 

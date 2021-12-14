@@ -103,7 +103,7 @@ bool proc_file_info::update_file_info(file_info& info, const timespec& stamp, st
         in >> ignore;
       }
     }
-  } catch(std::ios_base::failure e) {
+  } catch(std::ios_base::failure& e) {
     // Do nothing
   }
   return true;
@@ -121,8 +121,10 @@ bool proc_file_info::update_io_info(io_info& info, const timespec& stamp) {
        >> label >> wsys
        >> label >> rio
        >> label >> wio;
-    if(!is.good()) return false;
-  } catch(std::ios_base::failure e) {
+    if(!is.good())
+      throw std::ios_base::failure("Couldn't read information");
+  } catch(std::ios_base::failure& e) {
+    ++info.dead_count;
     return false;
   }
 

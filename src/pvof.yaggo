@@ -24,6 +24,13 @@ option("fd") {
 option("N", "numeric") {
   description "Display PIDs instead of command names"
   off }
+option("C", "clean") {
+  description "Clean dead processus after N updates. 0 for never."
+  uint32; default 5 }
+option("nocolor") {
+  description "Don't use color"
+  off
+}
 arg("command") {
   description "Process to launch"
   c_string; multiple }
