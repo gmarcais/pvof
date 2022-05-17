@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <filesystem>
 
 #include <src/proc.hpp>
 
@@ -164,4 +165,25 @@ bool proc_file_info::update_io_info(io_info& info, const timespec& stamp) {
     info.start               = stamp;
   }
   return true;
+}
+
+void find_cmds(const std::vector<const char*>& cmds, std::vector<pid_t>& pids) {
+  std::string cmdline;
+  for(auto const& entry : std::filesystem::directory_iterator{"/proc"}) {
+    if(!entry.is_directory()) continue;
+    char* endptr = nullptr;
+    auto path = entry.path();
+    const auto dirname = path.filename();
+    const pid_t pid = strtol(dirname.c_str(), &endptr, 10);
+    if(pid <= 0 || (endptr != dirname.c_str() + strlen(dirname.c_str()))) continue; // Not a valid integer
+    path /= "cmdline";
+    std::ifstream is(path);
+    if(!is.good()) continue;
+    std::getline(is, cmdline, '\0');
+    if(!is.good()) continue;
+    const auto base = std::filesystem::path(cmdline).filename();
+    const auto& bstr = base.string();
+    if(std::any_of(cmds.begin(), cmds.end(), [&](const char* s) { return bstr == s; }))
+      pids.push_back(pid);
+  }
 }

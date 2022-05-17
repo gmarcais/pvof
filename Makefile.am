@@ -1,4 +1,4 @@
-AM_CXXFLAGS = -Wall -Werror -g -O2 -std=c++0x -I$(top_srcdir)
+AM_CXXFLAGS = -Wall -Werror -g -O2 -std=c++17 -I$(top_srcdir)
 AM_LDFLAGS = -lrt
 
 noinst_HEADERS = $(BUILT_SOURCES)

@@ -178,11 +178,11 @@ bool display_file_progress(const std::vector<pid_t>& pids, tty_writer& writer) {
   std::vector<size_t> dead_processes;
   while(!done) {
     bool success = false;
-    size_t total_lines = 0;
+    // size_t total_lines = 0;
     for(size_t i = 0; i < info_updaters.size(); ++i) {
       success = info_updaters[i]->update_io_info(info_ios[i], time_tick) || success;
       success = info_updaters[i]->update_file_info(info_files[i], time_tick) || success;
-      total_lines += info_files[i].size();
+      // total_lines += info_files[i].size();
       if(args.clean_arg && info_ios[i].dead_count > args.clean_arg)
         dead_processes.push_back(i);
     }
@@ -234,11 +234,12 @@ int main(int argc, char *argv[])
 {
   args.parse(argc, argv);
 
-  if(args.pid_arg.empty() && args.command_arg.empty())
-    pvof::error() << "A process ID (-p switch) or a command is necessary";
+  if(args.pid_arg.empty() && args.cmd_arg.empty() && args.command_arg.empty())
+    pvof::error() << "A process ID (-p switch), a command (-c switch) or a command to run is necessary";
 
   std::vector<pid_t> pids(args.pid_arg.size(), -1);
   std::copy(args.pid_arg.cbegin(), args.pid_arg.cend(), pids.begin());
+  find_cmds(args.cmd_arg, pids);
   if(!args.command_arg.empty()) {
     pid_t pid = start_sub_command(args.command_arg);
     if(pid == -1)

@@ -28,4 +28,8 @@ protected:
   bool update_file_info(file_info& info, const timespec& stamp, std::istream& in, const bool is_new);
 };
 
+// Find add the process with a command that match a word in <cmds>, and append
+// to pids.
+void find_cmds(const std::vector<const char*>& cmds, std::vector<pid_t>& pids);
+
 #endif /* __PROC_H__ */
