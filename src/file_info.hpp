@@ -48,7 +48,8 @@ struct io_info {
   speed sys_speed, sys_avg;
   rw io_counter, oio_counter;
   speed io_speed, io_avg;
-  io_info() : stamp({0, 0}), start({0, 0}) { }
+  size_t dead_count;
+  io_info() : stamp({0, 0}), start({0, 0}), dead_count(0) { }
 };
 typedef std::vector<io_info> io_info_list;
 
@@ -59,12 +60,8 @@ struct file_list {
   typedef list_type::iterator       iterator;
   typedef list_type::const_iterator const_iterator;
 
-  file_info_updater& source;
   list_type          list;
 
-  file_list(file_info_updater& s)
-    : source(s)
-  { }
   iterator find(int fd, ino_t inode) { return std::find_if(list.begin(), list.end(), find_file(fd, inode)); }
 
   void push_back(file_info&& f) { list.push_back(std::move(f)); }
@@ -81,13 +78,15 @@ typedef std::vector<file_list> list_of_file_list;
 std::string create_identifier(bool numeric, pid_t pid);
 
 class file_info_updater {
+  const pid_t       pid_;
   const std::string strid_;
 public:
-  file_info_updater() : strid_("") { }
-  file_info_updater(const std::string&& s) : strid_(std::move(s)) { }
+  file_info_updater(pid_t pid) : pid_(pid), strid_("") { }
+  file_info_updater(pid_t pid, const std::string&& s) : pid_(pid), strid_(std::move(s)) { }
   const std::string& strid() const { return strid_; }
   virtual bool update_file_info(file_list& list, const timespec& stamp) = 0;
   virtual bool update_io_info(io_info& info, const timespec& stamp) = 0;
+  pid_t pid() const { return pid_; }
 };
 typedef std::unique_ptr<file_info_updater> updater_ptr;
 typedef std::vector<updater_ptr>           updater_list_type;

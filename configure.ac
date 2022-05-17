@@ -1,5 +1,5 @@
 AC_PREREQ([2.63])
-AC_INIT([pvof], [0.0.9], [gmarcais@cs.cmu.edu])
+AC_INIT([pvof], [0.1.0], [gmarcais@cs.cmu.edu])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_SRCDIR([src/pvof.cc]) 
 AC_CONFIG_HEADERS([config.h])

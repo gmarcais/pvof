@@ -6,6 +6,10 @@ posix # Don't switch arguments around
 option("p", "pid") {
   description "Look at files of this process id"
   int64; multiple }
+option("c", "cmd") {
+  description "Look at files of this command"
+  c_string; multiple
+}
 option("n", "seconds") {
   description "Number of seconds between updates"
   int32; default "1" }
@@ -24,6 +28,13 @@ option("fd") {
 option("N", "numeric") {
   description "Display PIDs instead of command names"
   off }
+option("C", "clean") {
+  description "Clean dead processus after N updates. 0 for never."
+  uint32; default 5 }
+option("nocolor") {
+  description "Don't use color"
+  off
+}
 arg("command") {
   description "Process to launch"
   c_string; multiple }

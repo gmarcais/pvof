@@ -7,7 +7,19 @@
 class tty_writer {
   // ANSI escape code
 #define CSI "\033["
+public:
+  static constexpr const char *underline = CSI "4m";
+  static constexpr const char *reverse = CSI "7m";
+  static constexpr const char *reset = CSI "0m";
+  static constexpr const char *blue = CSI "34m";
+  static constexpr const char *green = CSI "32m";
+  static constexpr const char *cdefault = CSI "39m";
 
+  const char *write;
+  const char *read;
+  const char *normal;
+
+private:
   // Handling change in window size
   static volatile bool invalid_window_width;
   static int           window_width;
@@ -39,7 +51,13 @@ class tty_writer {
     }
 
     ~session() {
-      m_tw.m_os << CSI "0m" << std::flush;
+      m_tw.m_os << reset;
+      if(m_nb_lines < m_tw.m_nb_lines) {
+        for(size_t i = m_nb_lines; i < m_tw.m_nb_lines; ++i)
+          m_tw.m_os << "\n" CSI "K";
+        m_tw.m_os << CSI << (m_tw.m_nb_lines - m_nb_lines) << 'A';
+      }
+      m_tw.m_os << std::flush;
       m_tw.m_nb_lines = m_nb_lines;
     }
 
@@ -70,14 +88,17 @@ class tty_writer {
   };
 
 public:
-  tty_writer(std::ostream& os)
-    : m_os(os)
-    , m_nb_lines(0)
+  tty_writer(std::ostream &os, bool color = true)
+      : write(color ? green : "")
+      , read(color ? blue : "")
+      , normal(color ? cdefault : "")
+      , m_os(os)
+      , m_nb_lines(0)
   {
     prepare_display();
   }
   ~tty_writer() {
-    m_os << CSI "0m";
+    m_os << reset;
     if(m_end_nl)
       m_os << std::endl;
     else
