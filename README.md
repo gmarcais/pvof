@@ -18,6 +18,34 @@ the path of the file.
 
 For a file being written, the size of the ETA is a -.
 
+`pvof` can monitor easier a process that is already running (the PID is given with `-p` as above). Alternatively, a command is passed as argument to `pvof`.
+
+`pvof` should have a little to no impact on the performance of the process being monitored. It does not use strace/ptrace, but rather reads the information from `/proc/<pid>/fdinfo` or `/proc/<pid>/io`.
+
+## Installation
+
+### From the release tarball
+
+Download the latest [release tar ball](https://github.com/gmarcais/pvof/releases/download/v0.0.6/pvof-0.0.6.tar.gz) and compile it with:
+
+```Shell
+./configure
+make
+make install # may need sudo
+```
+
+By default, it installs in `/usr/local`. To install in another location, use `--prefix` with configure.
+
+### From the git tree
+
+Use this method only if you plan to develop and improve pvof. There are more dependencies: `autoconf`, `automake` and [yaggo](https://github.com/gmarcais/yaggo). Compile with
+
+```Shell
+autoreconf -fi
+./configure
+make
+make install # may need sudo
+```
 
 ## License
 
