@@ -195,6 +195,7 @@ bool display_file_progress(const std::vector<pid_t>& pids, tty_writer& writer) {
     for(auto it = dead_processes.rbegin(); it != dead_processes.rend(); ++it) {
       info_ios.erase(info_ios.begin() + *it);
       info_files.erase(info_files.begin() + *it);
+      info_updaters.erase(info_updaters.begin() + *it);
       pid_set.erase(*it);
     }
     dead_processes.clear();

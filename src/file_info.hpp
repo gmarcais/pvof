@@ -1,6 +1,7 @@
 #ifndef __FILE_INFO_H__
 #define __FILE_INFO_H__
 
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <algorithm>

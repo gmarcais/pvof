@@ -34,7 +34,7 @@ make
 make install # may need sudo
 ```
 
-By default, it installs in `/usr/local`. To install in another location, use `--prefix` with configure.
+By default, it installs in `/usr/local`. To install in another location, use `./configure --prefix /path/to/installation`.
 
 ### From the git tree
 
